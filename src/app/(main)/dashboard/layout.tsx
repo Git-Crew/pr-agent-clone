@@ -7,7 +7,7 @@ import { cn } from "cn";
 import { AppSidebar } from "@/app/(main)/dashboard/_components/sidebar/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { users } from "@/data/users";
+import { getUser } from "@/lib/db/queries";
 import { getPreference } from "@/server/server-actions";
 
 import { AccountSwitcher } from "./_components/header/account-switcher";
@@ -19,10 +19,15 @@ import { ThemeSwitcher } from "./_components/header/theme-switcher";
 export default async function Layout({ children }: Readonly<{ children: ReactNode }>) {
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
-  const [variant, collapsible] = await Promise.all([
+  const [variant, collapsible, user] = await Promise.all([
     getPreference("sidebar_variant"),
     getPreference("sidebar_collapsible"),
+    getUser(),
   ]);
+
+  const displayUser = user
+    ? { name: user.name || user.email, email: user.email, role: user.role }
+    : { name: "Guest", email: "", role: "guest" };
 
   return (
     <SidebarProvider
@@ -47,7 +52,6 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
         <header
           className={cn(
             "flex h-12 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12",
-            // Handle sticky navbar style with conditional classes so blur, background, z-index, and rounded corners remain consistent across all SidebarVariant layouts.
             "[html[data-navbar-style=sticky]_&]:sticky [html[data-navbar-style=sticky]_&]:top-0 [html[data-navbar-style=sticky]_&]:z-50 [html[data-navbar-style=sticky]_&]:overflow-hidden [html[data-navbar-style=sticky]_&]:rounded-t-[inherit] [html[data-navbar-style=sticky]_&]:bg-background/50 [html[data-navbar-style=sticky]_&]:backdrop-blur-md",
           )}
         >
@@ -64,11 +68,10 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
               <LayoutControls />
               <ThemeSwitcher />
               <GitHubRepositoriesMenu />
-              <AccountSwitcher users={users} />
+              <AccountSwitcher user={displayUser} />
             </div>
           </div>
         </header>
-        {/* Pages can set data-content-padding="false" to render full-bleed app layouts. */}
         <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden p-4 has-data-[content-padding=false]:p-0 md:p-6 md:has-data-[content-padding=false]:p-0">
           {children}
         </div>

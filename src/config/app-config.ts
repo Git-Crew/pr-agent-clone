@@ -3,12 +3,12 @@ import packageJson from "../../package.json";
 const currentYear = new Date().getFullYear();
 
 export const APP_CONFIG = {
-  name: "Studio Admin",
+  name: "pr/agents",
   version: packageJson.version,
-  copyright: `© ${currentYear}, Studio Admin.`,
+  copyright: `\u00A9 ${currentYear}, pr/agents.`,
   meta: {
-    title: "Studio Admin: Open Source Admin Dashboard with shadcn/ui",
+    title: "PR Agents - Personalized Agents for Code Reviews",
     description:
-      "A polished open source shadcn/ui admin dashboard with 25+ screens and editions for Radix UI, Base UI, React Aria, and TanStack Start.",
+      "Deploy personalized AI agents for code reviews. Powered by Hermes, OpenClaw, and AntiSlop. Ship cleaner code, faster.",
   },
 };

@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { Command } from "lucide-react";
+import Link from "next/link";
+
+import { GitBranch } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 import {
@@ -51,9 +52,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const variant = isSynced ? sidebarVariant : props.variant;
   const collapsible = isSynced ? sidebarCollapsible : props.collapsible;
 
-  const displayUser = user
-    ? { name: user.name || user.email, email: user.email }
-    : { name: "Loading...", email: "" };
+  const displayUser = user ? { name: user.name || user.email, email: user.email } : { name: "Loading...", email: "" };
 
   return (
     <Sidebar {...props} variant={variant} collapsible={collapsible}>
@@ -62,7 +61,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <Link prefetch={false} href="/dashboard/default">
-                <Command />
+                <GitBranch />
                 <span className="font-semibold text-base">{APP_CONFIG.name}</span>
               </Link>
             </SidebarMenuButton>

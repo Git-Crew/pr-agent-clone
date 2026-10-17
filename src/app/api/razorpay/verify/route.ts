@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { eq } from "drizzle-orm";
+
 import { db } from "@/lib/db/drizzle";
-import { teams, teamMembers } from "@/lib/db/schema";
-import { verifyRazorpaySignature, razorpay } from "@/lib/payments/razorpay";
 import { getUser } from "@/lib/db/queries";
+import { teamMembers, teams } from "@/lib/db/schema";
+import { razorpay, verifyRazorpaySignature } from "@/lib/payments/razorpay";
 
 /**
  * POST /api/razorpay/verify
@@ -47,13 +49,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch subscription details from Razorpay
-    const subscription = await razorpay.subscriptions.fetch(razorpay_subscription_id);
+    // biome-ignore lint/suspicious/noExplicitAny: Razorpay SDK types are incomplete
+    const subscription: any = await razorpay.subscriptions.fetch(razorpay_subscription_id);
 
     // Fetch plan to get name
     let planName: string | null = null;
     try {
-      const plan = await razorpay.plans.fetch(subscription.plan_id as string);
-      planName = (plan as { item?: { name?: string } }).item?.name || null;
+      // biome-ignore lint/suspicious/noExplicitAny: Razorpay SDK types are incomplete
+      const plan: any = await razorpay.plans.fetch(subscription.plan_id);
+      planName = plan.item?.name || null;
     } catch {
       // plan name is optional
     }
@@ -62,11 +66,11 @@ export async function POST(request: NextRequest) {
     await db
       .update(teams)
       .set({
-        razorpayCustomerId: (subscription.customer_id as string) || null,
+        razorpayCustomerId: subscription.customer_id || null,
         razorpaySubscriptionId: razorpay_subscription_id,
-        razorpayPlanId: subscription.plan_id as string,
+        razorpayPlanId: subscription.plan_id,
         planName,
-        subscriptionStatus: subscription.status as string,
+        subscriptionStatus: subscription.status,
         updatedAt: new Date(),
       })
       .where(eq(teams.id, userTeam[0].teamId));

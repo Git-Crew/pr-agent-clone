@@ -1,25 +1,44 @@
-import Razorpay from "razorpay";
-import crypto from "crypto";
 import { redirect } from "next/navigation";
-import type { Team } from "@/lib/db/schema";
-import { getTeamByRazorpayCustomerId, getUser, updateTeamSubscription } from "@/lib/db/queries";
 
-export const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
+import crypto from "crypto";
+import Razorpay from "razorpay";
+
+import { getTeamByRazorpayCustomerId, getUser, updateTeamSubscription } from "@/lib/db/queries";
+import type { Team } from "@/lib/db/schema";
+
+// Lazy-initialize so the module can be imported at build time without env vars.
+let _razorpay: InstanceType<typeof Razorpay> | null = null;
+
+export function getRazorpayClient() {
+  if (!_razorpay) {
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      throw new Error("RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables are required");
+    }
+    _razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+  }
+  return _razorpay;
+}
+
+// Alias for backward compatibility
+export const razorpay = new Proxy({} as InstanceType<typeof Razorpay>, {
+  get(_target, prop, receiver) {
+    const client = getRazorpayClient();
+    const value = Reflect.get(client, prop, receiver);
+    if (typeof value === "function") {
+      return value.bind(client);
+    }
+    return value;
+  },
 });
 
 /**
  * Create a Razorpay subscription for a team.
  * Returns the subscription object so the client can open the checkout modal.
  */
-export async function createRazorpaySubscription({
-  team,
-  planId,
-}: {
-  team: Team | null;
-  planId: string;
-}) {
+export async function createRazorpaySubscription({ team, planId }: { team: Team | null; planId: string }) {
   const user = await getUser();
 
   if (!team || !user) {
@@ -102,8 +121,9 @@ export async function handleSubscriptionChange(subscriptionData: {
   // Fetch plan details to get the plan name
   let planName: string | null = null;
   try {
-    const plan = await razorpay.plans.fetch(planId);
-    planName = (plan as { item?: { name?: string } }).item?.name || null;
+    // biome-ignore lint/suspicious/noExplicitAny: Razorpay SDK types are incomplete
+    const plan: any = await razorpay.plans.fetch(planId);
+    planName = plan.item?.name || null;
   } catch {
     console.error("Failed to fetch plan details for:", planId);
   }
@@ -151,12 +171,13 @@ export function verifyWebhookSignature(body: string, signature: string): boolean
 export async function getRazorpayPlans() {
   const plans = await razorpay.plans.all({ count: 100 });
 
-  return (plans.items || []).map((plan: Record<string, unknown>) => ({
+  // biome-ignore lint/suspicious/noExplicitAny: Razorpay SDK types are incomplete
+  return (plans.items || []).map((plan: any) => ({
     id: plan.id as string,
-    name: ((plan.item as Record<string, unknown>)?.name as string) || "",
-    description: ((plan.item as Record<string, unknown>)?.description as string) || "",
-    amount: (plan.item as Record<string, unknown>)?.amount as number,
-    currency: (plan.item as Record<string, unknown>)?.currency as string,
+    name: (plan.item?.name as string) || "",
+    description: (plan.item?.description as string) || "",
+    amount: plan.item?.amount as number,
+    currency: (plan.item?.currency as string) || "INR",
     period: plan.period as string,
     interval: plan.interval as number,
   }));

@@ -1,7 +1,9 @@
-import { z } from "zod";
-import type { TeamDataWithMembers, User } from "@/lib/db/schema";
-import { getTeamForUser, getUser } from "@/lib/db/queries";
 import { redirect } from "next/navigation";
+
+import type { z } from "zod";
+
+import { getTeamForUser, getUser } from "@/lib/db/queries";
+import type { TeamDataWithMembers, User } from "@/lib/db/schema";
 
 export type ActionState = {
   error?: string;
@@ -9,32 +11,30 @@ export type ActionState = {
   [key: string]: unknown;
 };
 
-type ValidatedActionFunction<S extends z.ZodType<unknown, z.ZodTypeDef, unknown>, T> = (
-  data: z.infer<S>,
-  formData: FormData,
-) => Promise<T>;
+// biome-ignore lint/suspicious/noExplicitAny: Zod schema type constraint requires broad typing
+type ValidatedActionFunction<S extends z.ZodType<any>, T> = (data: z.infer<S>, formData: FormData) => Promise<T>;
 
-export function validatedAction<S extends z.ZodType<unknown, z.ZodTypeDef, unknown>, T>(
-  schema: S,
-  action: ValidatedActionFunction<S, T>,
-) {
+// biome-ignore lint/suspicious/noExplicitAny: Zod schema type constraint requires broad typing
+export function validatedAction<S extends z.ZodType<any>, T>(schema: S, action: ValidatedActionFunction<S, T>) {
   return async (prevState: ActionState, formData: FormData) => {
     const result = schema.safeParse(Object.fromEntries(formData));
     if (!result.success) {
-      return { error: result.error.errors[0].message };
+      return { error: result.error.issues[0].message };
     }
 
     return action(result.data, formData);
   };
 }
 
-type ValidatedActionWithUserFunction<S extends z.ZodType<unknown, z.ZodTypeDef, unknown>, T> = (
+// biome-ignore lint/suspicious/noExplicitAny: Zod schema type constraint requires broad typing
+type ValidatedActionWithUserFunction<S extends z.ZodType<any>, T> = (
   data: z.infer<S>,
   formData: FormData,
   user: User,
 ) => Promise<T>;
 
-export function validatedActionWithUser<S extends z.ZodType<unknown, z.ZodTypeDef, unknown>, T>(
+// biome-ignore lint/suspicious/noExplicitAny: Zod schema type constraint requires broad typing
+export function validatedActionWithUser<S extends z.ZodType<any>, T>(
   schema: S,
   action: ValidatedActionWithUserFunction<S, T>,
 ) {
@@ -46,7 +46,7 @@ export function validatedActionWithUser<S extends z.ZodType<unknown, z.ZodTypeDe
 
     const result = schema.safeParse(Object.fromEntries(formData));
     if (!result.success) {
-      return { error: result.error.errors[0].message };
+      return { error: result.error.issues[0].message };
     }
 
     return action(result.data, formData, user);

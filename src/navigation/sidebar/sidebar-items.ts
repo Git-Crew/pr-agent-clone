@@ -3,6 +3,7 @@ import {
   Calendar,
   ChartBar,
   CheckSquare,
+  CreditCard,
   Fingerprint,
   FolderOpen,
   Forklift,
@@ -192,6 +193,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Roles",
         url: "/dashboard/roles",
         icon: Lock,
+      },
+      {
+        id: "pricing",
+        title: "Pricing",
+        url: "/dashboard/pricing",
+        icon: CreditCard,
       },
       {
         id: "authentication",

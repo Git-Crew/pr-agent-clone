@@ -1,5 +1,6 @@
 import {
   Blocks,
+  Cable,
   CreditCard,
   GitPullRequestArrow,
   LayoutDashboard,
@@ -61,6 +62,7 @@ export const sidebarItems: NavGroup[] = [
     id: 2,
     label: "Account",
     items: [
+      { id: "setup", title: "GitHub App", url: "/dashboard/setup", icon: Cable },
       { id: "settings", title: "Settings", url: "/dashboard/settings", icon: Settings },
       { id: "pricing", title: "Pricing", url: "/dashboard/pricing", icon: CreditCard },
     ],

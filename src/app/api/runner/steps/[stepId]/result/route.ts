@@ -24,7 +24,7 @@ export async function POST(request: Request, context: Context) {
     const claims = await authenticateRunner(request);
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) throw new RunnerRequestError(400, "Body must be { ok, output?, error? }");
-    return NextResponse.json(await submitStepResult(getOrchestratorDeps(), stepId, parsed.data, claims));
+    return NextResponse.json(await submitStepResult(await getOrchestratorDeps(), stepId, parsed.data, claims));
   } catch (error) {
     return runnerErrorResponse(error);
   }

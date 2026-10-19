@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import Link from "next/link";
 
 import { GitBranch } from "lucide-react";
@@ -24,14 +22,9 @@ import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
 import { SupportCard } from "./support-card";
 
-type AuthUser = {
-  id: number;
-  name: string | null;
-  email: string;
-  role: string;
-};
+type SidebarUser = { name: string; email: string; avatar?: string };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ user, ...props }: React.ComponentProps<typeof Sidebar> & { user: SidebarUser }) {
   const { sidebarVariant, sidebarCollapsible, isSynced } = usePreferencesStore(
     useShallow((s) => ({
       sidebarVariant: s.values.sidebar_variant,
@@ -40,19 +33,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     })),
   );
 
-  const [user, setUser] = useState<AuthUser | null>(null);
-
-  useEffect(() => {
-    fetch("/api/user")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setUser(data))
-      .catch(() => setUser(null));
-  }, []);
-
   const variant = isSynced ? sidebarVariant : props.variant;
   const collapsible = isSynced ? sidebarCollapsible : props.collapsible;
-
-  const displayUser = user ? { name: user.name ?? user.email, email: user.email } : { name: "Loading...", email: "" };
 
   return (
     <Sidebar {...props} variant={variant} collapsible={collapsible}>
@@ -73,7 +55,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <SupportCard />
-        <NavUser user={displayUser} />
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   );

@@ -26,7 +26,12 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
   ]);
 
   const displayUser = user
-    ? { name: user.name || user.email, email: user.email, role: user.role }
+    ? {
+        name: user.githubLogin ?? user.name ?? user.email,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatarUrl ?? undefined,
+      }
     : { name: "Guest", email: "", role: "guest" };
 
   return (
@@ -38,7 +43,7 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant={variant} collapsible={collapsible} />
+      <AppSidebar variant={variant} collapsible={collapsible} user={displayUser} />
       <SidebarInset
         className={cn(
           "[html[data-content-layout=centered]_&>*]:mx-auto",

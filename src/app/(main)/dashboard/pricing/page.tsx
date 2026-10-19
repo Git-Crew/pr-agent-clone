@@ -1,4 +1,5 @@
 import Script from "next/script";
+
 import type { Metadata } from "next";
 
 import { getTeamForUser } from "@/lib/db/queries";

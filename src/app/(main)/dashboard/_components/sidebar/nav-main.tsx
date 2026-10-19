@@ -90,7 +90,8 @@ export function NavMain({ items }: NavMainProps) {
       return item.subItems.some((sub) => path.startsWith(sub.url));
     }
 
-    return path === item.url;
+    // Detail pages (e.g. /dashboard/repos/123) keep their section highlighted; the overview root matches exactly.
+    return path === item.url || (item.url !== "/dashboard" && path.startsWith(`${item.url}/`));
   };
 
   const isSubItemActive = (url: string) => {

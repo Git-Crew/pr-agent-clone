@@ -52,7 +52,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const variant = isSynced ? sidebarVariant : props.variant;
   const collapsible = isSynced ? sidebarCollapsible : props.collapsible;
 
-  const displayUser = user ? { name: user.name || user.email, email: user.email } : { name: "Loading...", email: "" };
+  const displayUser = user ? { name: user.name ?? user.email, email: user.email } : { name: "Loading...", email: "" };
 
   return (
     <Sidebar {...props} variant={variant} collapsible={collapsible}>
@@ -60,7 +60,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
-              <Link prefetch={false} href="/dashboard/default">
+              <Link prefetch={false} href="/dashboard">
                 <GitBranch />
                 <span className="font-semibold text-base">{APP_CONFIG.name}</span>
               </Link>

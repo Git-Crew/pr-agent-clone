@@ -3,7 +3,7 @@ CREATE TABLE "activity_logs" (
 	"team_id" integer NOT NULL,
 	"user_id" integer,
 	"action" text NOT NULL,
-	"timestamp" timestamp DEFAULT now() NOT NULL,
+	"timestamp" timestamp with time zone DEFAULT now() NOT NULL,
 	"ip_address" varchar(45)
 );
 --> statement-breakpoint
@@ -17,15 +17,15 @@ CREATE TABLE "agents" (
 	"signing_secret" text,
 	"installation_id" bigint,
 	"default_config" jsonb DEFAULT '{}'::jsonb NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "agents_slug_unique" UNIQUE("slug")
 );
 --> statement-breakpoint
 CREATE TABLE "installation_members" (
 	"user_id" integer NOT NULL,
 	"installation_id" bigint NOT NULL,
-	"synced_at" timestamp DEFAULT now() NOT NULL,
+	"synced_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "installation_members_user_id_installation_id_pk" PRIMARY KEY("user_id","installation_id")
 );
 --> statement-breakpoint
@@ -35,10 +35,10 @@ CREATE TABLE "installations" (
 	"account_login" varchar(100) NOT NULL,
 	"account_type" varchar(20) NOT NULL,
 	"account_avatar_url" text,
-	"suspended_at" timestamp,
-	"deleted_at" timestamp,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
+	"suspended_at" timestamp with time zone,
+	"deleted_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "invitations" (
@@ -47,7 +47,7 @@ CREATE TABLE "invitations" (
 	"email" varchar(255) NOT NULL,
 	"role" varchar(50) NOT NULL,
 	"invited_by" integer NOT NULL,
-	"invited_at" timestamp DEFAULT now() NOT NULL,
+	"invited_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"status" varchar(20) DEFAULT 'pending' NOT NULL
 );
 --> statement-breakpoint
@@ -65,8 +65,8 @@ CREATE TABLE "pipeline_steps" (
 	"run_on_drafts" boolean DEFAULT false NOT NULL,
 	"run_on_forks" boolean DEFAULT true NOT NULL,
 	"config" jsonb DEFAULT '{}'::jsonb NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "repositories" (
@@ -76,9 +76,9 @@ CREATE TABLE "repositories" (
 	"private" boolean DEFAULT false NOT NULL,
 	"default_branch" varchar(255) DEFAULT 'main' NOT NULL,
 	"enabled" boolean DEFAULT true NOT NULL,
-	"removed_at" timestamp,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
+	"removed_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "run_logs" (
@@ -87,7 +87,7 @@ CREATE TABLE "run_logs" (
 	"step_id" uuid,
 	"level" varchar(10) DEFAULT 'info' NOT NULL,
 	"message" text NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "run_steps" (
@@ -110,9 +110,9 @@ CREATE TABLE "run_steps" (
 	"summary" text,
 	"result" jsonb,
 	"metrics" jsonb,
-	"started_at" timestamp,
-	"finished_at" timestamp,
-	"created_at" timestamp DEFAULT now() NOT NULL
+	"started_at" timestamp with time zone,
+	"finished_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "runs" (
@@ -132,9 +132,9 @@ CREATE TABLE "runs" (
 	"conclusion" varchar(20),
 	"current_stage" integer DEFAULT 0 NOT NULL,
 	"error" text,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"started_at" timestamp,
-	"finished_at" timestamp
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"started_at" timestamp with time zone,
+	"finished_at" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "secrets" (
@@ -143,8 +143,8 @@ CREATE TABLE "secrets" (
 	"repository_id" bigint,
 	"name" varchar(100) NOT NULL,
 	"value" text NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "secrets_scope_name_unique" UNIQUE NULLS NOT DISTINCT("installation_id","repository_id","name")
 );
 --> statement-breakpoint
@@ -153,14 +153,14 @@ CREATE TABLE "team_members" (
 	"user_id" integer NOT NULL,
 	"team_id" integer NOT NULL,
 	"role" varchar(50) NOT NULL,
-	"joined_at" timestamp DEFAULT now() NOT NULL
+	"joined_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "teams" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" varchar(100) NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"razorpay_customer_id" text,
 	"razorpay_subscription_id" text,
 	"razorpay_plan_id" text,
@@ -179,9 +179,9 @@ CREATE TABLE "users" (
 	"github_login" varchar(100),
 	"avatar_url" text,
 	"role" varchar(20) DEFAULT 'member' NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"deleted_at" timestamp,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"deleted_at" timestamp with time zone,
 	CONSTRAINT "users_email_unique" UNIQUE("email"),
 	CONSTRAINT "users_github_id_unique" UNIQUE("github_id")
 );
@@ -189,7 +189,7 @@ CREATE TABLE "users" (
 CREATE TABLE "webhook_deliveries" (
 	"id" varchar(64) PRIMARY KEY NOT NULL,
 	"event" varchar(64) NOT NULL,
-	"received_at" timestamp DEFAULT now() NOT NULL
+	"received_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 ALTER TABLE "activity_logs" ADD CONSTRAINT "activity_logs_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

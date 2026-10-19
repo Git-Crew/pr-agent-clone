@@ -25,16 +25,16 @@ export const users = pgTable("users", {
   githubLogin: varchar("github_login", { length: 100 }),
   avatarUrl: text("avatar_url"),
   role: varchar("role", { length: 20 }).notNull().default("member"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  deletedAt: timestamp("deleted_at"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
 export const teams = pgTable("teams", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   razorpayCustomerId: text("razorpay_customer_id").unique(),
   razorpaySubscriptionId: text("razorpay_subscription_id").unique(),
   razorpayPlanId: text("razorpay_plan_id"),
@@ -51,7 +51,7 @@ export const teamMembers = pgTable("team_members", {
     .notNull()
     .references(() => teams.id),
   role: varchar("role", { length: 50 }).notNull(),
-  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+  joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const activityLogs = pgTable("activity_logs", {
@@ -61,7 +61,7 @@ export const activityLogs = pgTable("activity_logs", {
     .references(() => teams.id),
   userId: integer("user_id").references(() => users.id),
   action: text("action").notNull(),
-  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  timestamp: timestamp("timestamp", { withTimezone: true }).notNull().defaultNow(),
   ipAddress: varchar("ip_address", { length: 45 }),
 });
 
@@ -75,7 +75,7 @@ export const invitations = pgTable("invitations", {
   invitedBy: integer("invited_by")
     .notNull()
     .references(() => users.id),
-  invitedAt: timestamp("invited_at").notNull().defaultNow(),
+  invitedAt: timestamp("invited_at", { withTimezone: true }).notNull().defaultNow(),
   status: varchar("status", { length: 20 }).notNull().default("pending"),
 });
 
@@ -96,10 +96,10 @@ export const installations = pgTable("installations", {
   accountLogin: varchar("account_login", { length: 100 }).notNull(),
   accountType: varchar("account_type", { length: 20 }).notNull(),
   accountAvatarUrl: text("account_avatar_url"),
-  suspendedAt: timestamp("suspended_at"),
-  deletedAt: timestamp("deleted_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 /** Which signed-in users can see which installations (synced from GET /user/installations). */
@@ -112,7 +112,7 @@ export const installationMembers = pgTable(
     installationId: bigint("installation_id", { mode: "number" })
       .notNull()
       .references(() => installations.id, { onDelete: "cascade" }),
-    syncedAt: timestamp("synced_at").notNull().defaultNow(),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.installationId] })],
 );
@@ -128,9 +128,9 @@ export const repositories = pgTable(
     private: boolean("private").notNull().default(false),
     defaultBranch: varchar("default_branch", { length: 255 }).notNull().default("main"),
     enabled: boolean("enabled").notNull().default(true),
-    removedAt: timestamp("removed_at"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    removedAt: timestamp("removed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("repositories_installation_idx").on(t.installationId)],
 );
@@ -149,8 +149,8 @@ export const agents = pgTable("agents", {
     onDelete: "cascade",
   }),
   defaultConfig: jsonb("default_config").$type<Record<string, unknown>>().notNull().default({}),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 /** One agent in a repo's pipeline. Steps with the same stage run in parallel; stages run in order. */
@@ -174,8 +174,8 @@ export const pipelineSteps = pgTable(
     runOnDrafts: boolean("run_on_drafts").notNull().default(false),
     runOnForks: boolean("run_on_forks").notNull().default(true),
     config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("pipeline_steps_repository_idx").on(t.repositoryId)],
 );
@@ -202,9 +202,9 @@ export const runs = pgTable(
     conclusion: varchar("conclusion", { length: 20 }).$type<Conclusion>(),
     currentStage: integer("current_stage").notNull().default(0),
     error: text("error"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    startedAt: timestamp("started_at"),
-    finishedAt: timestamp("finished_at"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
   },
   (t) => [index("runs_repository_pr_idx").on(t.repositoryId, t.prNumber), index("runs_created_at_idx").on(t.createdAt)],
 );
@@ -236,9 +236,9 @@ export const runSteps = pgTable(
     summary: text("summary"),
     result: jsonb("result").$type<Record<string, unknown>>(),
     metrics: jsonb("metrics").$type<Record<string, string | number>>(),
-    startedAt: timestamp("started_at"),
-    finishedAt: timestamp("finished_at"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("run_steps_run_idx").on(t.runId)],
 );
@@ -253,7 +253,7 @@ export const runLogs = pgTable(
     stepId: uuid("step_id").references(() => runSteps.id, { onDelete: "cascade" }),
     level: varchar("level", { length: 10 }).$type<LogLevel>().notNull().default("info"),
     message: text("message").notNull(),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("run_logs_run_idx").on(t.runId)],
 );
@@ -271,8 +271,8 @@ export const secrets = pgTable(
     }),
     name: varchar("name", { length: 100 }).notNull(),
     value: text("value").notNull(),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique("secrets_scope_name_unique").on(t.installationId, t.repositoryId, t.name).nullsNotDistinct()],
 );
@@ -281,7 +281,7 @@ export const secrets = pgTable(
 export const webhookDeliveries = pgTable("webhook_deliveries", {
   id: varchar("id", { length: 64 }).primaryKey(),
   event: varchar("event", { length: 64 }).notNull(),
-  receivedAt: timestamp("received_at").notNull().defaultNow(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ---------------------------------------------------------------------------

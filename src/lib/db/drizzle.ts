@@ -9,10 +9,13 @@ let _db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 function getClient() {
   if (!_client) {
-    if (!process.env.POSTGRES_URL) {
-      throw new Error("POSTGRES_URL environment variable is not set");
+    // Neon's Vercel integration sets DATABASE_URL; POSTGRES_URL works too.
+    const url = process.env.POSTGRES_URL ?? process.env.DATABASE_URL;
+    if (!url) {
+      throw new Error("POSTGRES_URL (or DATABASE_URL) environment variable is not set");
     }
-    _client = postgres(process.env.POSTGRES_URL);
+    // No prepared statements, so pooled serverless connections (Neon, Supabase, PgBouncer) work.
+    _client = postgres(url, { prepare: false });
   }
   return _client;
 }

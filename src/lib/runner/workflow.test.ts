@@ -36,7 +36,9 @@ describe("agent-pr.yml", () => {
   });
 
   it("uses GitHub Actions expressions literally (not JS interpolation)", () => {
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: these are literal GitHub Actions and bash expressions
     expect(yaml).toContain("RUN_ID: ${{ inputs.run_id }}");
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: literal bash variable expansion
     expect(yaml).toContain('"fixmyslop${extra}==$FMS_VERSION"');
   });
 });

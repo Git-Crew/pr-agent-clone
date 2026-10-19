@@ -2,13 +2,13 @@
 
 ## Project overview
 
-Studio Admin is a responsive admin dashboard built with Next.js 16, React 19, TypeScript, Tailwind CSS v4, and shadcn/ui.
+Agent PR is a dashboard for AI agents that run on pull requests (GitHub App + GitHub Actions runner), built on the Studio Admin template: Next.js 16, React 19, TypeScript, Tailwind CSS v4, shadcn/ui and Drizzle ORM. Read `docs/ARCHITECTURE.md` before changing the GitHub, runner or pipeline code.
 
 This repository uses the shadcn `radix-nova` style. The shadcn CLI reports `base: "radix"`, which refers to Radix UI. Always inspect the local components in `src/components/ui/` because individual wrappers may use different primitives.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
@@ -50,7 +50,7 @@ npm run check:fix
 npm run generate:presets
 ```
 
-There is currently no automated test command. Run build, lint, check, or other validation commands only when the user explicitly requests that validation.
+Run `npm test` (Vitest; integration tests use an in-memory PGlite Postgres) after changing anything under `src/lib/`. After editing `src/lib/runner/workflow.ts`, regenerate `runner/agent-pr.yml` so the sync test passes.
 
 ## Co-location-based structure
 
@@ -68,7 +68,7 @@ Keep a component inside its route until it is reused by another feature. Do not 
 
 ## Creating or extending a screen
 
-1. Inspect the closest current screen before writing code. Finance, Infrastructure, CRM, and Analytics are useful references. Do not use routes under `(legacy)` as references for new screens unless maintaining a legacy route.
+1. Inspect the closest current screen before writing code. Repositories, the repo pipeline editor, Runs and Settings are useful references.
 2. When reproducing a UI from a screenshot or image, follow its visual direction closely, including layout, hierarchy, spacing, component structure, and important details. Implement it with the project's existing components and semantic theme tokens rather than copying raw color values. If the design needs a color that is not available through the existing theme tokens, or the user explicitly requests a non-theme color, use a named color from Tailwind's default palette. Do not use arbitrary hex, RGB, HSL, or OKLCH values.
 3. Reuse the existing dashboard shell, local components, layout controls, and theme tokens.
 4. Break each new page into focused components inside the route's `_components/` directory. Keep `page.tsx` small and focused on composing those pieces.

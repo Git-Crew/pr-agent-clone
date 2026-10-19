@@ -34,7 +34,7 @@ const agents = [
     Icon: Bot,
     description:
       "An LLM reads the diff and leaves a summary and review comments, with your own provider key stored encrypted.",
-    features: ["Summary", "Review comments", "Your API key"],
+    features: ["Summary", "Review comments", "Bring your own LLM"],
     url: null,
   },
   {

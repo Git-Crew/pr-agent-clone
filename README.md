@@ -12,7 +12,8 @@ agents use the same contract and show up in the same dashboard.
 * **PR review agent:** LLM summary and review comments. *(next)*
 * **Fix loop:** minimal-diff LLM fixes pushed to the PR branch, with a rescan proving the score dropped. *(next)*
 
-> Status: MVP in progress. The architecture is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+> Status: MVP. FixMySlop runs end to end in tests and against a local Postgres; the first run against a real
+> GitHub App is still to do. The architecture is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## How it works
 
@@ -67,7 +68,7 @@ GitHub → Settings → Developer settings → GitHub Apps → **New GitHub App*
 | Webhook URL | `<APP_URL>/api/github/webhook` |
 | Webhook secret | a long random string → `GITHUB_WEBHOOK_SECRET` |
 | Repository permissions | Actions: read & write · Checks: read & write · Contents: read · Pull requests: read & write · Metadata: read |
-| Subscribe to events | Pull request · Installation target · Repository |
+| Subscribe to events | Pull request (installation events are always delivered) |
 
 Then generate a private key and copy the App ID, slug, client id, client secret and private key into `.env.local`.
 For local development, expose your dev server with a tunnel (for example `npx smee-client` or `cloudflared`) and use

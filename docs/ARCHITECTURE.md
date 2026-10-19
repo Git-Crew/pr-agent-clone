@@ -223,6 +223,7 @@ webhook_deliveries (idempotency)
 | `run_logs` | `id`, `run_id`, `step_id`, `level`, `message`, `created_at` |
 | `secrets` | `id`, `installation_id`, `repository_id` (null = installation-wide), `name`, `value` (encrypted), unique per scope |
 | `webhook_deliveries` | `id` = `X-GitHub-Delivery`, `event`, `received_at` |
+| `app_config` | single row: the GitHub App created by the one-click setup (`app_id`, `slug`, `client_id`, encrypted `client_secret`, `private_key`, `webhook_secret`). `GITHUB_APP_*` env vars take precedence |
 
 **Encryption at rest:** AES-256-GCM via Node's `crypto`, with a 32-byte `ENCRYPTION_KEY` held only in the environment.
 Stored as `v1:<iv>:<tag>:<ciphertext>` (base64), with a fresh random IV per value. Secrets are write-only in the UI: you

@@ -284,6 +284,24 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * GitHub App credentials created through the one-click setup (App manifest flow). A single row (id = 1).
+ * Secrets are encrypted with ENCRYPTION_KEY. GITHUB_APP_* environment variables, when set, take precedence.
+ */
+export const appConfig = pgTable("app_config", {
+  id: integer("id").primaryKey().default(1),
+  appId: varchar("app_id", { length: 32 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull(),
+  clientId: varchar("client_id", { length: 100 }).notNull(),
+  clientSecret: text("client_secret").notNull(),
+  privateKey: text("private_key").notNull(),
+  webhookSecret: text("webhook_secret").notNull(),
+  htmlUrl: text("html_url").notNull(),
+  ownerLogin: varchar("owner_login", { length: 100 }),
+  createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ---------------------------------------------------------------------------
 // Relations
 // ---------------------------------------------------------------------------

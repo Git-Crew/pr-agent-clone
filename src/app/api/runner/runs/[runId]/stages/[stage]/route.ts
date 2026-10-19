@@ -21,7 +21,7 @@ export async function GET(request: Request, context: Context) {
   try {
     const { runId, stage } = await parseParams(context);
     const claims = await authenticateRunner(request);
-    return NextResponse.json(await getStageJob(getOrchestratorDeps(), runId, stage, claims));
+    return NextResponse.json(await getStageJob(await getOrchestratorDeps(), runId, stage, claims));
   } catch (error) {
     return runnerErrorResponse(error);
   }
@@ -35,7 +35,7 @@ export async function POST(request: Request, context: Context) {
     const { runId, stage } = await parseParams(context);
     const claims = await authenticateRunner(request);
     const body = failSchema.parse(await request.json().catch(() => ({})));
-    return NextResponse.json(await failStage(getOrchestratorDeps(), runId, stage, body.error, claims));
+    return NextResponse.json(await failStage(await getOrchestratorDeps(), runId, stage, body.error, claims));
   } catch (error) {
     return runnerErrorResponse(error);
   }

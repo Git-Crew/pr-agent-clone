@@ -11,9 +11,15 @@ export function SetupChecklist({ appConfigured, installed, hasRepos, firstRun }:
   const steps = [
     {
       done: appConfigured,
-      title: "Configure the GitHub App",
-      description: "Set the GITHUB_APP_* variables on this deployment (see the README).",
-      action: null,
+      title: "Create the GitHub App",
+      description: "One click on GitHub creates it with the right permissions and webhook.",
+      action: (
+        <Button asChild size="sm" variant="outline">
+          <Link prefetch={false} href="/dashboard/setup">
+            Set up
+          </Link>
+        </Button>
+      ),
     },
     {
       done: installed && hasRepos,

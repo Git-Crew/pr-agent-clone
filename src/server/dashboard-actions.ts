@@ -131,7 +131,11 @@ export async function cancelRunAction(runId: string): Promise<ActionResult> {
       .where(and(eq(runs.id, z.uuid().parse(runId)), inArray(repositories.installationId, installationIds)))
       .limit(1);
     if (!run) return { ok: false, error: "Run not found" };
-    const cancelled = await cancelRun(getOrchestratorDeps(), run.id, `Cancelled by ${user.githubLogin ?? user.email}`);
+    const cancelled = await cancelRun(
+      await getOrchestratorDeps(),
+      run.id,
+      `Cancelled by ${user.githubLogin ?? user.email}`,
+    );
     revalidatePath(`/dashboard/runs/${run.id}`);
     return cancelled ? { ok: true, message: "Run cancelled" } : { ok: false, error: "Run already finished" };
   } catch (error) {

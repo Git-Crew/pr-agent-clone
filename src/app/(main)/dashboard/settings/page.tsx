@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { listInstallations, listRepos, listSecrets, requireUser } from "@/lib/db/dashboard";
-import { isGitHubAppConfigured } from "@/lib/env";
+import { getGitHubAppConfig } from "@/lib/server/deps";
 
 import { PageHeader } from "../_components/page-header";
 import { SecretsManager } from "./_components/secrets-manager";
@@ -28,7 +28,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
     listSecrets(user.id),
     searchParams,
   ]);
-  const configured = isGitHubAppConfigured();
+  const configured = (await getGitHubAppConfig()) !== null;
   const encryptionReady = Boolean(process.env.ENCRYPTION_KEY);
 
   return (
@@ -37,10 +37,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
 
       {error === "github_not_configured" || !configured ? (
         <Alert variant="destructive">
-          <AlertTitle>The GitHub App is not configured</AlertTitle>
+          <AlertTitle>The GitHub App is not set up yet</AlertTitle>
           <AlertDescription>
-            Set GITHUB_APP_ID, GITHUB_APP_SLUG, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET
-            and GITHUB_WEBHOOK_SECRET on this deployment. The README lists the App settings.
+            <p>
+              Create it in one click on the{" "}
+              <a href="/dashboard/setup" className="font-medium underline underline-offset-4">
+                GitHub App setup page
+              </a>
+              , or set the GITHUB_APP_* environment variables.
+            </p>
           </AlertDescription>
         </Alert>
       ) : null}

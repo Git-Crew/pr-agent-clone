@@ -2,22 +2,17 @@ import { after, NextResponse } from "next/server";
 
 import { db } from "@/lib/db/drizzle";
 import { webhookDeliveries } from "@/lib/db/schema";
-import { getGitHubAppEnv } from "@/lib/env";
 import { verifyWebhookSignature } from "@/lib/github/webhook";
 import { handleWebhookEvent } from "@/lib/pipeline/events";
-import { getOrchestratorDeps } from "@/lib/server/deps";
+import { getGitHubAppConfig, getOrchestratorDeps } from "@/lib/server/deps";
 
 // GitHub expects a 2xx within 10 seconds, so verify, dedupe and acknowledge first, then do the work in after().
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
-  let secret: string;
-  try {
-    secret = getGitHubAppEnv().GITHUB_WEBHOOK_SECRET;
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "GitHub App is not configured" }, { status: 503 });
-  }
+  const config = await getGitHubAppConfig();
+  if (!config) return NextResponse.json({ error: "GitHub App is not configured" }, { status: 503 });
+  const secret = config.GITHUB_WEBHOOK_SECRET;
 
   const rawBody = await request.text();
   if (!verifyWebhookSignature(secret, rawBody, request.headers.get("x-hub-signature-256"))) {
@@ -44,7 +39,7 @@ export async function POST(request: Request) {
 
   after(async () => {
     try {
-      await handleWebhookEvent(getOrchestratorDeps(), event, payload);
+      await handleWebhookEvent(await getOrchestratorDeps(), event, payload);
     } catch (error) {
       console.error(`Webhook ${event} (${deliveryId}) failed`, error);
     }

@@ -44,7 +44,12 @@ Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui (radix
 React Hook Form, Zustand, TanStack Table, Biome, Husky, Vitest. The UI is built on the
 [Studio Admin](https://github.com/arhamkhnz/next-shadcn-admin-dashboard) template.
 
-## Getting started
+## Deploy
+
+[docs/DEPLOY.md](docs/DEPLOY.md) walks through Vercel + Neon in about 10 minutes. The GitHub App is created in one
+click from the dashboard's **GitHub App** page (App manifest flow), so you never copy keys by hand.
+
+## Getting started (local development)
 
 ### 1. Install and configure
 
@@ -57,7 +62,10 @@ Fill in `.env.local`. Every variable is described in [.env.example](.env.example
 
 ### 2. Create the GitHub App
 
-GitHub → Settings → Developer settings → GitHub Apps → **New GitHub App**:
+Easiest: open `/dashboard/setup` and click **Create the App on GitHub**. That needs a public `APP_URL` (a
+deployment or a tunnel). To create it by hand instead:
+
+GitHub → Settings → Developer settings → GitHub Apps → **New GitHub App**, then put the values in the `GITHUB_APP_*` variables:
 
 | Setting | Value |
 | --- | --- |

@@ -2,9 +2,9 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { syncUserInstallations, upsertGitHubUser } from "@/lib/auth/github";
 import { getSession, setSession } from "@/lib/auth/session";
-import { getAppUrl, getGitHubAppEnv } from "@/lib/env";
+import { getAppUrl } from "@/lib/env";
 import { exchangeOAuthCode, getAuthenticatedUser, listUserInstallations } from "@/lib/github/client";
-import { getOrchestratorDeps } from "@/lib/server/deps";
+import { getOrchestratorDeps, requireGitHubAppConfig } from "@/lib/server/deps";
 
 import { consumeOAuthState } from "../oauth-state";
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   if (!code) return fail("missing_code");
 
   try {
-    const env = getGitHubAppEnv();
+    const env = await requireGitHubAppConfig();
     const token = await exchangeOAuthCode({
       clientId: env.GITHUB_APP_CLIENT_ID,
       clientSecret: env.GITHUB_APP_CLIENT_SECRET,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     });
     const [ghUser, userInstallations] = await Promise.all([getAuthenticatedUser(token), listUserInstallations(token)]);
 
-    const deps = getOrchestratorDeps();
+    const deps = await getOrchestratorDeps();
     const session = await getSession().catch(() => null);
     const user = await upsertGitHubUser(deps.db, ghUser, session?.user.id ?? null);
     await syncUserInstallations(deps, user.id, userInstallations);

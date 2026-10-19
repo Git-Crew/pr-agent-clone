@@ -41,6 +41,6 @@ export function getBuiltinAgent(slug: string): BuiltinAgent | undefined {
 /** Validate a step's config against the agent's schema, filling defaults. Throws on invalid config. */
 export function resolveAgentConfig(slug: string, config: unknown): Record<string, unknown> {
   const agent = getBuiltinAgent(slug);
-  if (!agent) return (config as Record<string, unknown>) ?? {};
+  if (!agent) return typeof config === "object" && config !== null ? (config as Record<string, unknown>) : {};
   return agent.configSchema.parse(config ?? {});
 }

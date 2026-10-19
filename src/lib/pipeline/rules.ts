@@ -1,5 +1,7 @@
 import picomatch from "picomatch";
 
+export { parseGlobList } from "./schema";
+
 // Decides whether one pipeline step runs on a PR, and which changed files it should look at.
 
 export type StepRules = {
@@ -48,12 +50,4 @@ export function evaluateStep(rules: StepRules, pr: PullRequestFacts): RuleDecisi
     return { run: false, reason: `No changed files match ${scope}` };
   }
   return { run: true, files: matched.filter((file) => !file.removed).map((file) => file.path) };
-}
-
-/** Parse a textarea / comma list of globs into a clean array. */
-export function parseGlobList(input: string): string[] {
-  return input
-    .split(/[\n,]/)
-    .map((part) => part.trim())
-    .filter(Boolean);
 }

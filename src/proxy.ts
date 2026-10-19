@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { signToken, verifyToken } from "@/lib/auth/session";
 
 const protectedRoutes = ["/dashboard"];
 const authRoutes = ["/auth"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get("session");
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
@@ -26,7 +27,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  let res = NextResponse.next();
+  const res = NextResponse.next();
 
   // Refresh session on GET requests
   if (sessionCookie && request.method === "GET") {

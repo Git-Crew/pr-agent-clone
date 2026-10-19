@@ -1,14 +1,17 @@
 import { cn } from "cn";
-import { siGoogle } from "simple-icons";
+import { siGithub } from "simple-icons";
 
 import { SimpleIcon } from "@/components/simple-icon";
 import { Button } from "@/components/ui/button";
 
-export function GoogleButton({ className, ...props }: React.ComponentProps<typeof Button>) {
+/** Starts "Sign in with GitHub". A plain link, because the route answers with a redirect to github.com. */
+export function GitHubButton({ className, ...props }: React.ComponentProps<typeof Button>) {
   return (
-    <Button variant="secondary" className={cn(className)} {...props}>
-      <SimpleIcon icon={siGoogle} className="size-4" />
-      Continue with Google
+    <Button variant="secondary" className={cn(className)} asChild {...props}>
+      <a href="/api/auth/github/login">
+        <SimpleIcon icon={siGithub} className="size-4" />
+        Continue with GitHub
+      </a>
     </Button>
   );
 }

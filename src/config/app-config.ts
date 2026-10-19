@@ -7,8 +7,8 @@ export const APP_CONFIG = {
   version: packageJson.version,
   copyright: `\u00A9 ${currentYear}, pr/agents.`,
   meta: {
-    title: "PR Agents - Personalized Agents for Code Reviews",
+    title: "Agent PR · AI agents on every pull request",
     description:
-      "Deploy personalized AI agents for code reviews. Powered by Hermes, OpenClaw, and AntiSlop. Ship cleaner code, faster.",
+      "Install a GitHub App, pick the agents that run on your pull requests, and get inline reviews and merge checks.",
   },
 };

@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 import { APP_CONFIG } from "@/config/app-config";
 
 import { RegisterForm } from "../../_components/register-form";
-import { GoogleButton } from "../../_components/social-auth/google-button";
+import { GitHubButton } from "../../_components/social-auth/github-button";
 
 export const metadata: Metadata = {
   title: "Open Source Branded Registration Page with shadcn/ui",
@@ -26,7 +26,7 @@ export default function RegisterV2() {
           <p className="text-muted-foreground text-sm">Please enter your details to register.</p>
         </div>
         <div className="space-y-4">
-          <GoogleButton className="w-full" />
+          <GitHubButton className="w-full" />
           <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-border after:border-t">
             <span className="relative z-10 bg-background px-2 text-muted-foreground">Or continue with</span>
           </div>

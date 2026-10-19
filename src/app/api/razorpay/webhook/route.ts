@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { handleSubscriptionChange, verifyWebhookSignature } from "@/lib/payments/razorpay";
 
 export async function POST(request: NextRequest) {

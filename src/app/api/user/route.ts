@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+
 import { getUser } from "@/lib/db/queries";
 
 export async function GET() {
@@ -13,5 +14,7 @@ export async function GET() {
     name: user.name,
     email: user.email,
     role: user.role,
+    githubLogin: user.githubLogin,
+    avatarUrl: user.avatarUrl,
   });
 }

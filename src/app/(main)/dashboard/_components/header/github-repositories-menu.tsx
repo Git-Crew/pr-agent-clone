@@ -17,20 +17,12 @@ import {
 
 const repositories = [
   {
-    label: "Radix UI",
-    href: "https://github.com/arhamkhnz/next-shadcn-admin-dashboard",
+    label: "Agent PR",
+    href: "https://github.com/MrSpideyNihal/Pr-agent",
   },
   {
-    label: "Base UI",
-    href: "https://github.com/arhamkhnz/next-shadcn-admin-dashboard-baseui",
-  },
-  {
-    label: "React Aria",
-    href: "https://github.com/arhamkhnz/next-shadcn-admin-dashboard-aria",
-  },
-  {
-    label: "TanStack Start",
-    href: "https://github.com/arhamkhnz/tanstack-shadcn-admin-dashboard",
+    label: "FixMySlop",
+    href: "https://github.com/MrSpideyNihal/FixMySlop",
   },
 ] as const;
 
@@ -38,13 +30,13 @@ export function GitHubRepositoriesMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="icon" aria-label="Open project repositories on GitHub">
+        <Button size="icon" aria-label="Open Agent PR projects on GitHub">
           <SimpleIcon icon={siGithub} className="fill-primary-foreground" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Project versions</DropdownMenuLabel>
+          <DropdownMenuLabel>Projects</DropdownMenuLabel>
           {repositories.map((repository) => (
             <DropdownMenuItem key={repository.href} asChild>
               <Link prefetch={false} href={repository.href} target="_blank" rel="noreferrer">

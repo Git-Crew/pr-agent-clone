@@ -1,7 +1,8 @@
 "use server";
 
-import { createRazorpaySubscription } from "./razorpay";
 import { withTeam } from "@/lib/auth/middleware";
+
+import { createRazorpaySubscription } from "./razorpay";
 
 export const checkoutAction = withTeam(async (formData, team) => {
   const planId = formData.get("planId") as string;

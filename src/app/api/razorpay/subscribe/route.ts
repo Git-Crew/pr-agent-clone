@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getUser, getTeamForUser } from "@/lib/db/queries";
+import { type NextRequest, NextResponse } from "next/server";
+
+import { getTeamForUser, getUser } from "@/lib/db/queries";
 import { createRazorpaySubscription } from "@/lib/payments/razorpay";
 
 export async function POST(request: NextRequest) {

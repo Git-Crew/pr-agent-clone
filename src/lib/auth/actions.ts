@@ -1,26 +1,28 @@
 "use server";
 
-import { z } from "zod";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+
 import { and, eq, sql } from "drizzle-orm";
+import { z } from "zod";
+
+import { validatedAction, validatedActionWithUser } from "@/lib/auth/middleware";
+import { comparePasswords, hashPassword, setSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/drizzle";
+import { getUser, getUserWithTeam } from "@/lib/db/queries";
 import {
-  type User,
-  users,
-  teams,
-  teamMembers,
+  ActivityType,
   activityLogs,
-  type NewUser,
+  invitations,
+  type NewActivityLog,
   type NewTeam,
   type NewTeamMember,
-  type NewActivityLog,
-  ActivityType,
-  invitations,
+  type NewUser,
+  teamMembers,
+  teams,
+  type User,
+  users,
 } from "@/lib/db/schema";
-import { comparePasswords, hashPassword, setSession } from "@/lib/auth/session";
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { getUser, getUserWithTeam } from "@/lib/db/queries";
-import { validatedAction, validatedActionWithUser } from "@/lib/auth/middleware";
 
 async function logActivity(teamId: number | null | undefined, userId: number, type: ActivityType, ipAddress?: string) {
   if (teamId === null || teamId === undefined) {
@@ -30,7 +32,7 @@ async function logActivity(teamId: number | null | undefined, userId: number, ty
     teamId,
     userId,
     action: type,
-    ipAddress: ipAddress || "",
+    ipAddress: ipAddress ?? "",
   };
   await db.insert(activityLogs).values(newActivity);
 }
@@ -112,7 +114,9 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     const [invitation] = await db
       .select()
       .from(invitations)
-      .where(and(eq(invitations.id, parseInt(inviteId)), eq(invitations.email, email), eq(invitations.status, "pending")))
+      .where(
+        and(eq(invitations.id, parseInt(inviteId)), eq(invitations.email, email), eq(invitations.status, "pending")),
+      )
       .limit(1);
 
     if (invitation) {
@@ -204,10 +208,7 @@ export const updatePassword = validatedActionWithUser(updatePasswordSchema, asyn
   const userWithTeam = await getUserWithTeam(user.id);
 
   await Promise.all([
-    db
-      .update(users)
-      .set({ passwordHash: newPasswordHash })
-      .where(eq(users.id, user.id)),
+    db.update(users).set({ passwordHash: newPasswordHash }).where(eq(users.id, user.id)),
     logActivity(userWithTeam?.teamId, user.id, ActivityType.UPDATE_PASSWORD),
   ]);
 

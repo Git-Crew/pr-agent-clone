@@ -1,8 +1,11 @@
-import { desc, and, eq, isNull } from "drizzle-orm";
+import { cookies } from "next/headers";
+
+import { and, desc, eq, isNull } from "drizzle-orm";
+
+import { verifyToken } from "@/lib/auth/session";
+
 import { db } from "./drizzle";
 import { activityLogs, teamMembers, teams, users } from "./schema";
-import { cookies } from "next/headers";
-import { verifyToken } from "@/lib/auth/session";
 
 export async function getUser() {
   const sessionCookie = (await cookies()).get("session");
@@ -33,11 +36,7 @@ export async function getUser() {
 }
 
 export async function getTeamByRazorpayCustomerId(customerId: string) {
-  const result = await db
-    .select()
-    .from(teams)
-    .where(eq(teams.razorpayCustomerId, customerId))
-    .limit(1);
+  const result = await db.select().from(teams).where(eq(teams.razorpayCustomerId, customerId)).limit(1);
 
   return result.length > 0 ? result[0] : null;
 }

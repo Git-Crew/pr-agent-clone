@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+
 import { getUser } from "@/lib/db/queries";
 
 export async function GET() {

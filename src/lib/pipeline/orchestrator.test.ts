@@ -1,7 +1,4 @@
-import { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import * as schema from "@/lib/db/schema";
@@ -15,6 +12,7 @@ import {
   type ReviewInput,
 } from "@/lib/github/client";
 import type { ActionsClaims } from "@/lib/github/oidc";
+import { createTestDb } from "@/lib/test/db";
 
 import {
   cancelRun,
@@ -27,11 +25,9 @@ import {
   submitStepResult,
   syncInstallation,
 } from "./orchestrator";
-import { fileURLToPath } from "node:url";
 
 // End-to-end tests of the run state machine against a real Postgres (PGlite, in memory) and a fake GitHub.
 
-const MIGRATIONS = fileURLToPath(new URL("../db/migrations", import.meta.url));
 const INSTALLATION = 1001;
 const REPO: InstallationRepository = { id: 42, full_name: "octo/app", private: false, default_branch: "main" };
 
@@ -144,10 +140,7 @@ let github: FakeGitHub;
 let deps: OrchestratorDeps;
 
 beforeEach(async () => {
-  const client = new PGlite();
-  const pglite = drizzle(client, { schema });
-  await migrate(pglite, { migrationsFolder: MIGRATIONS });
-  db = pglite as unknown as Db;
+  db = await createTestDb();
   github = new FakeGitHub();
   deps = { db, github: () => github, appUrl: "https://agent-pr.test" };
   await syncInstallation(deps, {

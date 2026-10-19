@@ -1,150 +1,126 @@
-<<<<<<< HEAD
-# Next.js Admin Template with TypeScript & Shadcn UI
+# Agent PR
 
-**Studio Admin** - Includes multiple dashboards, authentication layouts, customizable theme presets, and more.
+AI agents on your pull requests, managed from one dashboard.
 
-<img src="https://github.com/arhamkhnz/next-shadcn-admin-dashboard/blob/main/media/dashboard.png?version=5" alt="Dashboard Screenshot">
+Install the Agent PR GitHub App on your repos, pick which agents run on each repo's PRs (in what order, on which paths,
+and which ones can block a merge), and the agents review, comment and gate your PRs. Built-in agents and your own
+agents use the same contract and show up in the same dashboard.
 
-Most admin templates I found, free or paid, felt cluttered, outdated, or too rigid. I built this as a cleaner alternative with features often missing in others, such as theme toggling and layout controls, while keeping the design modern, minimal, and flexible.
+* **FixMySlop agent:** runs [`fixmyslop`](https://github.com/MrSpideyNihal/FixMySlop) on the PR's changed files and
+  posts the findings as a PR review with inline comments, a slop score and a grade.
+* **Bring your own agent:** register any HTTPS endpoint as an agent and enable it per repo. *(next)*
+* **PR review agent:** LLM summary and review comments. *(next)*
+* **Fix loop:** minimal-diff LLM fixes pushed to the PR branch, with a rescan proving the score dropped. *(next)*
 
-> **View demo:** [studio admin](https://studio-admin.arhamkhnz.com)
+> Status: MVP in progress. The architecture is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-> [!NOTE]
-> Looking for the Base UI version? Check out [next-shadcn-admin-dashboard-baseui](https://github.com/arhamkhnz/next-shadcn-admin-dashboard-baseui).
->
-> Looking for the React Aria version? Check out [arhamkhnz/next-shadcn-admin-dashboard-aria](https://github.com/arhamkhnz/next-shadcn-admin-dashboard-aria).
->
-> Looking for the TanStack Start version? Check out [tanstack-shadcn-admin-dashboard](https://github.com/arhamkhnz/tanstack-shadcn-admin-dashboard).
+## How it works
 
-> [!TIP]
-> I’m also working on Nuxt.js and Svelte versions of this dashboard. They’ll be live soon.
-
-## Features
-
-- Built with Next.js 16, TypeScript, Tailwind CSS v4, and Shadcn UI  
-- Responsive and mobile-friendly  
-- Customizable theme presets (light/dark modes with color schemes like Tangerine, Brutalist, and more)  
-- Flexible layouts (collapsible sidebar, variable content widths)  
-- Authentication flows and screens  
-- Prebuilt dashboards (Default, CRM, Finance, Analytics, Productivity) plus legacy variants  
-- Role-Based Access Control (RBAC) with config-driven UI and multi-tenant support *(planned)*  
-
-> [!NOTE]
-> The default dashboard uses the **shadcn neutral** theme.  
-> It also includes additional color presets inspired by [Tweakcn](https://tweakcn.com):  
->
-> - Tangerine  
-> - Neo Brutalism  
-> - Soft Pop  
->
-> You can create more presets by following the same structure as the existing ones.
-
-> Looking for the **Next.js 15** version?  
-> Check out the [`archive/next15`](https://github.com/arhamkhnz/next-shadcn-admin-dashboard/tree/archive/next15) branch.  
-> This branch contains the setup prior to upgrading to Next 16 and the React Compiler.
-
-> Looking for the **Next.js 14 + Tailwind CSS v3** version?  
-> Check out the [`archive/next14-tailwindv3`](https://github.com/arhamkhnz/next-shadcn-admin-dashboard/tree/archive/next14-tailwindv3) branch.  
-> It has a different color theme and is not actively maintained, but I try to keep it updated with major changes.  
-
-## Tech Stack
-
-- **Framework**: Next.js 16 (App Router), TypeScript, Tailwind CSS v4  
-- **UI Components**: Shadcn UI  
-- **Validation**: Zod  
-- **Forms & State Management**: React Hook Form, Zustand  
-- **Tables & Data Handling**: TanStack Table  
-- **Tooling & DX**: Biome, Husky  
-
-## Screens
-
-### Available
-- Default Dashboard  
-- CRM Dashboard  
-- Finance Dashboard  
-- Analytics Dashboard  
-- Productivity Dashboard  
-- E-commerce Dashboard  
-- Academy Dashboard  
-- Logistics Dashboard  
-- Infrastructure Dashboard  
-- File Manager  
-- Patient Monitoring  
-- Chat Page  
-- Email Page  
-- Profile  
-- Users Management  
-- Roles Management  
-- Kanban Board  
-- Tasks Page  
-- Invoice Page  
-- Calendar Page  
-- Authentication (4 screens)  
-- Legacy: Default v1, CRM v1, Finance v1, Analytics v1
-
-### Planned
-I’ve added all the planned screens. Feel free to open an issue for requesting something specific.
-
-## Colocation File System Architecture
-
-This project follows a **colocation-based architecture** each feature keeps its own pages, components, and logic inside its route folder.  
-Shared UI, hooks, and configuration live at the top level, making the codebase modular, scalable, and easier to maintain as the app grows.
-
-For a full breakdown of the structure with examples, see the [Next Colocation Template](https://github.com/arhamkhnz/next-colocation-template).
-
-## Getting Started
-
-You can run this project locally, or deploy it instantly with Vercel.
-
-### Deploy with Vercel
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Farhamkhnz%2Fnext-shadcn-admin-dashboard)
-
-_Deploy your own copy with one click._
-
-### Run locally
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/arhamkhnz/next-shadcn-admin-dashboard.git
-   ```
-   
-2. **Navigate into the project**
-   ```bash
-    cd next-shadcn-admin-dashboard
-   ```
-   
-3. **Install dependencies**
-   ```bash
-    npm install
-   ```
-
-4. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-Your app will be running at [http://localhost:3000](http://localhost:3000)
-
-### Formatting and Linting
-
-Format, lint, and organize imports
-```bash
-npx @biomejs/biome check --write
 ```
-> For more information on available rules, fixes, and CLI options, refer to the [Biome documentation](https://biomejs.dev/).
+PR opened / pushed ──► GitHub App webhook ──► Agent PR (Next.js on Vercel)
+                                                │ rules: paths, branches, drafts, forks
+                                                │ one check run per agent
+                                                ▼
+                        workflow_dispatch ──► agent-pr.yml in your repo (GitHub Actions)
+                                                │ checks out the PR head as data, runs fixmyslop
+                                                ▼
+                        results (OIDC-authenticated) ──► Agent PR ──► PR review + check runs
+                                                                     └► run history in the dashboard
+```
 
----
+* **Agents run in GitHub Actions in your repo.** There are no serverless timeouts, and PR code never runs on our servers.
+* **Fork-safe.** The workflow is triggered with `workflow_dispatch` (never `pull_request_target`), always runs the
+  workflow file from your default branch, has no repository secrets, and only reads the PR checkout.
+* **No shared secrets in your repo.** The runner proves who it is with a GitHub Actions OIDC token.
+* **Merge gating.** Each agent gets its own check run, `Agent PR / <agent>`. Mark it as a required status check in
+  branch protection to block merges when a blocking agent fails.
+* **Pipelines.** Agents in the same stage run in parallel; stages run in order. Each step has its own path and branch
+  filters, a draft/fork policy and a blocking flag. You can apply one pipeline to many repos at once.
 
-> [!IMPORTANT]  
-> This project is updated frequently. If you’re working from a fork or an older clone, pull the latest changes before syncing. Some updates may include breaking changes.
+## Tech stack
 
----
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui (radix-nova), Drizzle ORM + Postgres, Zod,
+React Hook Form, Zustand, TanStack Table, Biome, Husky, Vitest. The UI is built on the
+[Studio Admin](https://github.com/arhamkhnz/next-shadcn-admin-dashboard) template.
 
-Contributions are welcome. Feel free to open issues, feature requests, or start a discussion.
+## Getting started
 
+### 1. Install and configure
 
-**Happy Vibe Coding!**
-=======
-# Pr-agent
->>>>>>> 84a03540b5faa2421a1198c77e449f3bcb4e927a
+```bash
+npm install
+cp .env.example .env.local
+```
+
+Fill in `.env.local`. Every variable is described in [.env.example](.env.example).
+
+### 2. Create the GitHub App
+
+GitHub → Settings → Developer settings → GitHub Apps → **New GitHub App**:
+
+| Setting | Value |
+| --- | --- |
+| Homepage URL | your `APP_URL` |
+| Callback URL | `<APP_URL>/api/auth/github/callback` |
+| Request user authorization (OAuth) during installation | on |
+| Setup URL | `<APP_URL>/api/auth/github/callback` (redirect on update: on) |
+| Webhook URL | `<APP_URL>/api/github/webhook` |
+| Webhook secret | a long random string → `GITHUB_WEBHOOK_SECRET` |
+| Repository permissions | Actions: read & write · Checks: read & write · Contents: read · Pull requests: read & write · Metadata: read |
+| Subscribe to events | Pull request · Installation target · Repository |
+
+Then generate a private key and copy the App ID, slug, client id, client secret and private key into `.env.local`.
+For local development, expose your dev server with a tunnel (for example `npx smee-client` or `cloudflared`) and use
+the tunnel URL as `APP_URL`.
+
+### 3. Database
+
+```bash
+npm run db:migrate
+```
+
+### 4. Run
+
+```bash
+npm run dev
+```
+
+Open http://localhost:3000, sign in with GitHub, install the App on a repo, and add the workflow file the dashboard
+shows you (`.github/workflows/agent-pr.yml`) to that repo's default branch. Open a PR and watch the run appear.
+
+## Scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Dev server |
+| `npm run build` | Production build |
+| `npm run check` / `npm run check:fix` | Biome lint + format |
+| `npm test` | Unit and integration tests (Vitest, in-memory Postgres via PGlite) |
+| `npm run db:generate` | Generate a migration from `src/lib/db/schema.ts` |
+| `npm run db:migrate` | Apply migrations |
+
+## Project layout
+
+```
+src/app/(main)/dashboard/   dashboard routes (overview, repos, agents, runs, settings, pricing)
+src/app/api/github/         GitHub App webhook
+src/app/api/runner/         endpoints the agent-pr.yml workflow calls (OIDC-authenticated)
+src/app/api/auth/github/    sign in with GitHub + installation callback
+src/lib/github/             App JWT, installation tokens, REST client, webhook + OIDC verification
+src/lib/agents/             agent contract, registry, built-in agents (FixMySlop), diff-line mapping
+src/lib/pipeline/           rules engine and run orchestrator
+src/lib/crypto/             AES-256-GCM encryption for secrets at rest
+src/lib/db/                 Drizzle schema, queries, migrations
+runner/agent-pr.yml         the workflow users add to their repo
+docs/ARCHITECTURE.md        the design
+```
+
+## Security
+
+Secrets are encrypted at rest (AES-256-GCM) and are write-only in the UI. Webhooks are HMAC-verified and deduplicated.
+Runner calls are authenticated with GitHub OIDC. Only `.env.example` is in git. See
+[docs/ARCHITECTURE.md § Security checklist](docs/ARCHITECTURE.md#7-security-checklist).
+
+## License
+
+MIT. See [LICENSE](LICENSE).

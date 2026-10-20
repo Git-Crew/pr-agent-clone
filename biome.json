@@ -40,7 +40,9 @@
       "!dist",
       "!out",
       "!src/components/ui",
-      "!src/components/calendar"
+      "!src/components/calendar",
+      "!src/app/(external)/landing.css",
+      "!src/app/(external)/_components/landing/landing-markup.tsx"
     ]
   },
   "formatter": {

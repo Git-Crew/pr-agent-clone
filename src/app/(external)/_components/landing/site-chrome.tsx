@@ -64,8 +64,15 @@ export function SiteChrome({ children }: { children: ReactNode }) {
   return (
     <div className="gitcrew mkt scroll-smooth antialiased" data-v2-theme="light" style={{ colorScheme: "light" }}>
       <nav className="fixed inset-x-0 z-50 bg-v2-bg" style={{ top: 0, height: 56 }} aria-label="Main navigation">
-        <div className="relative mx-auto flex h-full items-center justify-between" style={{ maxWidth: "var(--v2-max-width)", padding: "0 var(--v2-grid-padding)" }}>
-          <a className="font-v2-sans text-[15px] font-medium tracking-tight" href="/" style={{ color: "var(--v2-nav-text)", letterSpacing: "-0.04em" }}>
+        <div
+          className="relative mx-auto flex h-full items-center justify-between"
+          style={{ maxWidth: "var(--v2-max-width)", padding: "0 var(--v2-grid-padding)" }}
+        >
+          <a
+            className="font-v2-sans text-[15px] font-medium tracking-tight"
+            href="/"
+            style={{ color: "var(--v2-nav-text)", letterSpacing: "-0.04em" }}
+          >
             GitCrew
           </a>
           <div className="hidden h-full items-stretch gap-5 min-[1100px]:flex xl:gap-8">
@@ -77,7 +84,11 @@ export function SiteChrome({ children }: { children: ReactNode }) {
               <MenuLink href="/#ponytail">Ponytail</MenuLink>
               <MenuLink href="/#openai-dots">OpenAI Dots</MenuLink>
             </Menu>
-            <a className="v2-nav-link flex h-full items-center font-v2-sans text-v2-b3" style={{ color: "var(--v2-nav-text)" }} href="/pricing">
+            <a
+              className="v2-nav-link flex h-full items-center font-v2-sans text-v2-b3"
+              style={{ color: "var(--v2-nav-text)" }}
+              href="/pricing"
+            >
               Pricing
             </a>
             <Menu id="mkt-developers" label="Developers">
@@ -88,7 +99,11 @@ export function SiteChrome({ children }: { children: ReactNode }) {
               <MenuLink href="/blog">Blog</MenuLink>
               <MenuLink href="/docs">Docs</MenuLink>
             </Menu>
-            <a className="v2-nav-link flex h-full items-center font-v2-sans text-v2-b3" style={{ color: "var(--v2-nav-text)" }} href="/community">
+            <a
+              className="v2-nav-link flex h-full items-center font-v2-sans text-v2-b3"
+              style={{ color: "var(--v2-nav-text)" }}
+              href="/community"
+            >
               Contribute
             </a>
           </div>
@@ -99,7 +114,10 @@ export function SiteChrome({ children }: { children: ReactNode }) {
       </nav>
       <main className="mkt-main">{children}</main>
       <footer className="relative w-full bg-v2-bg" style={{ borderTop: "1px solid var(--v2-color-border)" }}>
-        <div className="mx-auto flex flex-wrap items-center justify-between gap-4" style={{ maxWidth: "var(--v2-max-width)", padding: "28px var(--v2-grid-padding)" }}>
+        <div
+          className="mx-auto flex flex-wrap items-center justify-between gap-4"
+          style={{ maxWidth: "var(--v2-max-width)", padding: "28px var(--v2-grid-padding)" }}
+        >
           <a className="font-v2-sans text-[15px] font-medium" href="/" style={{ color: "var(--v2-nav-text)" }}>
             GitCrew
           </a>

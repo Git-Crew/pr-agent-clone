@@ -129,7 +129,7 @@ function localBox(node: HTMLElement, host: HTMLElement): Box {
   for (let guard = 0; current && current !== host && guard < 12; guard += 1) {
     left += current.offsetLeft;
     top += current.offsetTop;
-    const next = current.offsetParent;
+    const next: Element | null = current.offsetParent;
     if (!(next instanceof HTMLElement) || (next !== host && !host.contains(next))) {
       const hostRect = host.getBoundingClientRect();
       const nodeRect = node.getBoundingClientRect();
@@ -165,7 +165,9 @@ function measureBox(host: HTMLElement, cssW: number, cssH: number): Box {
 
   const title = host.querySelector("h2, h3");
   if (title instanceof HTMLElement) {
-    const bits = [title, ...host.querySelectorAll("a")].filter((node): node is HTMLElement => node instanceof HTMLElement);
+    const bits = [title, ...host.querySelectorAll("a")].filter(
+      (node): node is HTMLElement => node instanceof HTMLElement,
+    );
     let left = Number.POSITIVE_INFINITY;
     let top = Number.POSITIVE_INFINITY;
     let right = 0;
@@ -371,7 +373,9 @@ function ready() {
     tuck: 0.1,
   });
 
-  const aws = [...document.querySelectorAll("a")].find((anchor) => anchor.getAttribute("aria-label")?.trim() === "GitHub");
+  const aws = [...document.querySelectorAll("a")].find(
+    (anchor) => anchor.getAttribute("aria-label")?.trim() === "GitHub",
+  );
   if (aws) {
     let logoGrid: HTMLElement | null = aws.parentElement;
     while (
@@ -397,7 +401,6 @@ function ready() {
     anchor.getAttribute("aria-label")?.startsWith("View post"),
   );
   if (post) mount(climb(post, 480), { width: 0.7, height: 52, tuck: 0.08 });
-
 }
 
 export function LandingDither() {

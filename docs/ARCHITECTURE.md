@@ -1,6 +1,6 @@
-# Agent PR architecture
+# GitCrew architecture
 
-Agent PR is a dashboard for AI agents that run on pull requests. You install a GitHub App on your repos, build a
+GitCrew is a dashboard for AI agents that run on pull requests. You install a GitHub App on your repos, build a
 pipeline of agents per repo (which agents, in what order, on which paths, which ones can block a merge), and the
 agents review, comment, gate and (later) fix PRs. Built-in agents and your own agents share the same contract and
 the same dashboard.
@@ -17,7 +17,7 @@ This document is the design. The README has the short version and the setup step
 | Where do agents run? | **GitHub Actions in the user's repo**, dispatched by us | No timeouts, PR code never runs on our servers, free minutes for the user |
 | How does a third party plug in? | **HTTP agent** (signed webhook, sync or async result) | Language-agnostic, nothing of theirs runs on our infra |
 | "Army of agents" | **Fleet**: apply one pipeline to many repos in one action | Org-wide rollout from the repos page |
-| Merge gating | One check run per agent; blocking agents fail their check | Users mark `Agent PR / <agent>` as a required status check |
+| Merge gating | One check run per agent; blocking agents fail their check | Users mark `GitCrew / <agent>` as a required status check |
 | Fixes | Minimal-diff fixes only ("ponytail" rule), never on fork PRs | Small reviewable patches, no write access to untrusted branches |
 
 ## System overview
@@ -30,7 +30,7 @@ This document is the design. The README has the short version and the setup step
                          │            │ webhook              │ OIDC JWT + results
              check runs, │            ▼                      │
              reviews     │   ┌─────────────────────┐   ┌─────┴──────────────────────┐
-                         └───┤  Agent PR (Next.js) │◄──┤  agent-pr.yml workflow in  │
+                         └───┤  GitCrew (Next.js)  │◄──┤  agent-pr.yml workflow in  │
                              │  on Vercel          │   │  the user's repo (runner)  │
                              │  - webhook handler  ├──►│  - checks out the PR head  │
                              │  - orchestrator     │   │    as data, no credentials │
@@ -103,8 +103,8 @@ type AgentRequest = {
   agent: { slug: string; config: Record<string, unknown> };
   repository: { id: number; fullName: string; defaultBranch: string; private: boolean };
   pullRequest: {
-    number: number; title: string; body: string | null; url: string; author: string;
-    headSha: string; baseSha: string; headRef: string; baseRef: string; isFork: boolean; draft: boolean;
+    number: number; title: string; url: string; author: string;
+    headSha: string; baseSha: string; headRef: string; baseRef: string; isFork: boolean;
   };
   changedFiles: { path: string; status: string; additions: number; deletions: number; patch?: string }[];
   callbackUrl: string; // for async results
@@ -131,13 +131,42 @@ The platform owns everything GitHub-facing. Agents never get a GitHub token. Fro
 
 | Option | How it works | Pros | Cons |
 | --- | --- | --- | --- |
-| **HTTP agent** (recommended) | We `POST` the `AgentRequest` to your URL, signed with `X-Agent-PR-Signature: sha256=<hmac>`. Reply `200` with an `AgentResult`, or `202` and `POST` the result to `callbackUrl` later with the same signature | Any language or host, long jobs via callback, nothing runs on our infra, easy to test with curl | You host it; it sees the diff, not a checkout |
+| **HTTP agent** (recommended) | We `POST` the `AgentRequest` to your URL, signed with `X-GitCrew-Signature: sha256=<hmac>`. Reply `200` with an `AgentResult`, or `202` and `POST` the result to `callbackUrl` later with the same signature | Any language or host, long jobs via callback, nothing runs on our infra, easy to test with curl | You host it; it sees the diff, not a checkout |
 | Container image | We run your image in the user's runner with the PR mounted read-only | Full checkout, offline tools | Image supply chain risk, slower, needs a public registry |
 | GitHub Action | Your action runs as a step in `agent-pr.yml` | Native to Actions | Every user must edit YAML per agent; no central management |
 
 **Recommendation:** HTTP agents first. They match "manage it from the same dashboard": register a URL and a secret,
 enable it per repo, done. Container agents are the next step for agents that need a full checkout. They reuse the
 runner we already have, so they are an addition, not a redesign.
+
+**Built:** `src/lib/agents/http.ts` calls the agent (25 s timeout, no redirects, 2 MB reply cap) after
+`assertAgentUrl` rejects anything but public `https://` hosts (no localhost, private ranges, IP literals or
+credentials; `http://localhost` only in development). A `202` leaves the step running until the agent posts to
+`/api/agents/steps/{stepId}/result`. Replies may be `AgentResult` JSON, SARIF 2.1.0 or plain text;
+`src/lib/agents/adapters.ts` turns each into an `AgentResult`. The user-facing guide is
+[CONNECT-AN-AGENT.md](CONNECT-AN-AGENT.md).
+
+### Agent cards
+
+Ready-made agents are described by an `AgentCard` (`src/lib/agents/card.ts`, catalog in `catalog.ts`): name,
+tagline, description, author, docs link, status (`available` / `coming_soon`), runtime
+(`runner | http | prompt | command`) and a list of `SettingField`s (`text | textarea | number | boolean | select | list`,
+with defaults, limits and an `advanced` flag). The pipeline editor renders settings straight from the card and
+`parseSettings` validates them on save, so adding an agent needs no form code. Agents from other projects
+(Hermes Agent, OpenClaw) are listed as coming soon and work today behind a small HTTP wrapper.
+
+### Four plain questions per step
+
+Each pipeline step answers the same questions, stored on `pipeline_steps` and snapshotted on `run_steps`:
+
+| Question | Columns | Effect |
+| --- | --- | --- |
+| When should it run? | `trigger` (`every_push`, `opened`, `label`), `trigger_label` | Filters steps per webhook action; `labeled` events start a run without cancelling the current one |
+| Which files? | `include_paths`, `exclude_paths` | Only matching files are scanned or sent |
+| How strict? | `review_mode` (`comment`, `request_changes`), `blocking` | `request_changes` posts a REQUEST_CHANGES review on failure; `blocking` fails the check and skips later stages |
+| How chatty? | `comment_style` (`inline`, `summary`), `max_comments` | Inline comments up to the limit, or one summary review |
+
+Branches, drafts, forks and advanced agent settings sit behind an "Advanced" toggle in the editor.
 
 ## 3. Where agents run
 
@@ -216,10 +245,10 @@ webhook_deliveries (idempotency)
 | `installations` | `id` = GitHub installation id, `account_login`, `account_type`, `account_avatar_url`, `suspended_at`, `deleted_at` |
 | `installation_members` | (`user_id`, `installation_id`) primary key, `synced_at` |
 | `repositories` | `id` = GitHub repo id, `installation_id`, `full_name`, `private`, `default_branch`, `enabled`, `removed_at` |
-| `agents` | `id`, `slug` (unique), `name`, `description`, `kind` (`builtin`/`http`), `endpoint_url`, `signing_secret` (encrypted), `installation_id` (null = built-in), `default_config` |
-| `pipeline_steps` | `id`, `repository_id`, `agent_id`, `stage`, `position`, `enabled`, `blocking`, `include_paths[]`, `exclude_paths[]`, `branches[]`, `run_on_drafts`, `run_on_forks`, `config` (jsonb) |
+| `agents` | `id`, `slug` (unique), `name`, `tagline`, `description`, `kind` (`builtin`/`http`), `endpoint_url`, `signing_secret` (encrypted), `installation_id` (null = built-in), `default_config`, `created_by` |
+| `pipeline_steps` | `id`, `repository_id`, `agent_id`, `stage`, `position`, `enabled`, `blocking`, `include_paths[]`, `exclude_paths[]`, `branches[]`, `run_on_drafts`, `run_on_forks`, `trigger`, `trigger_label`, `review_mode`, `comment_style`, `max_comments`, `config` (jsonb) |
 | `runs` | `id`, `repository_id`, `pr_number`, `pr_title`, `pr_author`, `head_sha`, `base_sha`, `head_ref`, `base_ref`, `is_fork`, `trigger`, `status`, `conclusion`, `current_stage`, timestamps |
-| `run_steps` | `id`, `run_id`, `pipeline_step_id`, `agent_id`, `stage`, `status`, `conclusion`, `skip_reason`, `check_run_id`, `review_id`, `result` (jsonb), `metrics` (jsonb), timestamps |
+| `run_steps` | `id`, `run_id`, `pipeline_step_id`, `agent_id` (set null when the agent is removed), `stage`, `review_mode`, `comment_style`, `max_comments`, `status`, `conclusion`, `skip_reason`, `check_run_id`, `review_id`, `result` (jsonb), `metrics` (jsonb), timestamps |
 | `run_logs` | `id`, `run_id`, `step_id`, `level`, `message`, `created_at` |
 | `secrets` | `id`, `installation_id`, `repository_id` (null = installation-wide), `name`, `value` (encrypted), unique per scope |
 | `webhook_deliveries` | `id` = `X-GitHub-Delivery`, `event`, `received_at` |
@@ -238,7 +267,7 @@ can replace or delete one, never read it back.
 | `/dashboard` | Overview: installs, active repos, runs today, pass rate, recent runs, setup checklist |
 | `/dashboard/repos` | Repos across installations, enabled toggle, pipeline summary, last run; bulk "apply pipeline" (fleet) |
 | `/dashboard/repos/[repoId]` | Pipeline editor: stages, agents, blocking, path and branch rules, agent config; workflow file setup |
-| `/dashboard/agents` | Agent catalog (built-in + your HTTP agents); register an HTTP agent |
+| `/dashboard/agents` | Ready-made agent cards with "Add to repositories"; your own agents with test, new secret and remove; a three-step "Connect your own agent" wizard |
 | `/dashboard/runs` | Run history with filters (repo, status) |
 | `/dashboard/runs/[runId]` | One run: stages, step status, metrics, findings, logs, links to the PR and check runs |
 | `/dashboard/settings` | Installations, members, secrets (encrypted, write-only), GitHub App setup status |
@@ -257,8 +286,9 @@ can replace or delete one, never read it back.
 ## 8. Roadmap
 
 1. **MVP (this PR):** App install → webhook → FixMySlop on a PR → review + check run → run in the dashboard.
-2. HTTP (bring-your-own) agents with async callbacks.
-3. LLM PR review agent; LLM keys as encrypted installation secrets.
-4. FixMySlop fix loop (minimal diffs, rescan proof, same-repo only).
-5. Paid plans on the existing Razorpay scaffold (per-installation seats or run quotas).
-6. Optional hosted runner (Inngest + sandboxed containers) for users who do not want a workflow file.
+2. ~~HTTP (bring-your-own) agents with async callbacks.~~ Done, with agent cards and the four plain questions.
+3. Plain-words agent (rules in English, run by an LLM), Ponytail minimal-change fixes, one-click Hermes Agent and OpenClaw.
+4. LLM PR review agent; LLM keys as encrypted installation secrets.
+5. FixMySlop fix loop (minimal diffs, rescan proof, same-repo only).
+6. Paid plans on the existing Razorpay scaffold (per-installation seats or run quotas).
+7. Optional hosted runner (Inngest + sandboxed containers) for users who do not want a workflow file.

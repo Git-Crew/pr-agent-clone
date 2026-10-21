@@ -1,39 +1,45 @@
-# Agent PR
+# GitCrew
 
 AI agents on your pull requests, managed from one dashboard.
 
-Install the Agent PR GitHub App on your repos, pick which agents run on each repo's PRs (in what order, on which paths,
-and which ones can block a merge), and the agents review, comment and gate your PRs. Built-in agents and your own
-agents use the same contract and show up in the same dashboard.
+Install the GitCrew GitHub App on your repos, pick which agents run on each repo's PRs, and the agents review, comment
+and gate your PRs. Ready-made agents and your own agents work the same way and show up in the same dashboard.
 
 * **FixMySlop agent:** runs [`fixmyslop`](https://github.com/MrSpideyNihal/FixMySlop) on the PR's changed files and
   posts the findings as a PR review with inline comments, a slop score and a grade.
-* **Bring your own agent:** register any HTTPS endpoint as an agent and enable it per repo. *(next)*
-* **PR review agent:** LLM summary and review comments. *(next)*
-* **Fix loop:** minimal-diff LLM fixes pushed to the PR branch, with a rescan proving the score dropped. *(next)*
+* **Bring your own agent:** paste the URL of anything that answers a web request (a serverless function, n8n, Zapier,
+  a small server). GitCrew signs each request, and your agent replies with JSON, SARIF from any linter, or plain text.
+  Slow agents answer later through a callback. See [docs/CONNECT-AN-AGENT.md](docs/CONNECT-AN-AGENT.md).
+* **Agent catalog:** ready-made agents are cards with their own settings, so the dashboard builds their forms.
+  Coming soon: a plain-words agent (rules written in English), Ponytail (minimal-change fixes), Hermes Agent and
+  OpenClaw.
+* **Four plain questions per agent:** when should it run (every push, when the PR opens, or when a label is added),
+  which files, how strict (just comment, ask for changes, or block merging), and how chatty (comments on lines or one
+  summary, with a limit).
 
-> Status: MVP. FixMySlop runs end to end in tests and against a local Postgres; the first run against a real
-> GitHub App is still to do. The architecture is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+> Status: in use. FixMySlop and HTTP agents run end to end against a real GitHub App. The architecture is in
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## How it works
 
 ```
-PR opened / pushed ──► GitHub App webhook ──► Agent PR (Next.js on Vercel)
+PR opened / pushed ──► GitHub App webhook ──► GitCrew (Next.js on Vercel)
                                                 │ rules: paths, branches, drafts, forks
                                                 │ one check run per agent
                                                 ▼
                         workflow_dispatch ──► agent-pr.yml in your repo (GitHub Actions)
                                                 │ checks out the PR head as data, runs fixmyslop
                                                 ▼
-                        results (OIDC-authenticated) ──► Agent PR ──► PR review + check runs
+                        results (OIDC-authenticated) ──► GitCrew ──► PR review + check runs
                                                                      └► run history in the dashboard
 ```
 
-* **Agents run in GitHub Actions in your repo.** There are no serverless timeouts, and PR code never runs on our servers.
+* **Ready-made agents run in GitHub Actions in your repo.** There are no serverless timeouts, and PR code never runs
+  on our servers. Your own agents run wherever you host them; GitCrew calls them with the diff and a signature.
 * **Fork-safe.** The workflow is triggered with `workflow_dispatch` (never `pull_request_target`), always runs the
   workflow file from your default branch, has no repository secrets, and only reads the PR checkout.
 * **No shared secrets in your repo.** The runner proves who it is with a GitHub Actions OIDC token.
-* **Merge gating.** Each agent gets its own check run, `Agent PR / <agent>`. Mark it as a required status check in
+* **Merge gating.** Each agent gets its own check run, `GitCrew / <agent>`. Mark it as a required status check in
   branch protection to block merges when a blocking agent fails.
 * **Pipelines.** Agents in the same stage run in parallel; stages run in order. Each step has its own path and branch
   filters, a draft/fork policy and a blocking flag. You can apply one pipeline to many repos at once.

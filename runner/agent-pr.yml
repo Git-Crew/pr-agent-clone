@@ -139,6 +139,22 @@ jobs:
                   jq -nc --arg e "fixmyslop did not produce a JSON report" '{ok: false, error: $e}' > "$body"
                 fi
                 ;;
+              hermes|openclaw)
+                # Same checkout as FixMySlop (the pr/ directory). The binary must already be on PATH.
+                command=$(jq -r '.spec.command // empty' <<<"$step")
+                if [[ ! "$command" =~ ^[a-z][a-z0-9_-]*$ ]]; then
+                  jq -nc --arg a "$agent" '{ok: false, error: ("This workflow has no command for " + $a)}' > "$body"
+                else
+                  jq -r '.spec.prompt // ""' <<<"$step" > "$RUNNER_TEMP/prompt.txt"
+                  export GITCREW_PROMPT_FILE="$RUNNER_TEMP/prompt.txt"
+                  "$command" > "$out" || true
+                  if jq -e '.conclusion' "$out" > /dev/null 2>&1; then
+                    jq -c '{ok: true, output: .}' "$out" > "$body"
+                  else
+                    jq -nc --arg c "$command" '{ok: false, error: ($c + " did not return a review result")}' > "$body"
+                  fi
+                fi
+                ;;
               *)
                 jq -nc --arg a "$agent" \
                   '{ok: false, error: ("This agent-pr.yml cannot run the agent " + $a + ". Update it from the dashboard.")}' > "$body"

@@ -1,4 +1,6 @@
-import type { z } from "zod";
+import { z } from "zod";
+
+import { acceptReviewResult } from "@/lib/harness/agents";
 
 import type { AgentResult } from "./contract";
 import { FIXMYSLOP_VERSION, finalizeFixMySlop, fixMySlopConfigSchema } from "./fixmyslop";
@@ -20,6 +22,19 @@ export type BuiltinAgent = {
   docsUrl?: string;
 };
 
+const reviewConfigSchema = z.record(z.string(), z.unknown());
+
+function reviewAgent(slug: string, name: string, description: string, executor: "runner" | "server"): BuiltinAgent {
+  return {
+    slug,
+    name,
+    description,
+    executor,
+    configSchema: reviewConfigSchema,
+    finalize: (raw) => acceptReviewResult(raw),
+  };
+}
+
 export const BUILTIN_AGENTS: BuiltinAgent[] = [
   {
     slug: "fixmyslop",
@@ -32,6 +47,30 @@ export const BUILTIN_AGENTS: BuiltinAgent[] = [
     runnerSpec: { fixmyslopVersion: FIXMYSLOP_VERSION },
     docsUrl: "https://github.com/MrSpideyNihal/FixMySlop",
   },
+  reviewAgent(
+    "plain-words",
+    "Plain-words reviewer",
+    "Reads the diff with the kodus harness and comments where the team's instructions say to.",
+    "server",
+  ),
+  reviewAgent(
+    "ponytail",
+    "Ponytail",
+    "Reviews with the kodus harness and keeps the suggested change as small as the instructions allow.",
+    "server",
+  ),
+  reviewAgent(
+    "hermes",
+    "Hermes",
+    "Runs the Hermes harness in the repository's Actions job, in the checkout shared with the other agents.",
+    "runner",
+  ),
+  reviewAgent(
+    "openclaw",
+    "OpenClaw",
+    "Runs the OpenClaw harness in the repository's Actions job, in the checkout shared with the other agents.",
+    "runner",
+  ),
 ];
 
 export function getBuiltinAgent(slug: string): BuiltinAgent | undefined {

@@ -20,12 +20,15 @@ import {
   runLogs,
   runSteps,
   runs,
+  secrets,
 } from "@/lib/db/schema";
 import type { Db } from "@/lib/db/types";
 import type { CheckRunConclusion, GitHubClient, InstallationInfo, InstallationRepository } from "@/lib/github/client";
 import { GitHubApiError } from "@/lib/github/client";
 import type { ActionsClaims } from "@/lib/github/oidc";
 import { verifyWebhookSignature } from "@/lib/github/webhook";
+import { actionSpec, getBinding, placeForSlug } from "@/lib/harness/agents";
+import { completeAnthropic, runKodusHarness } from "@/lib/harness/kodus";
 import { noteFromFinish } from "@/lib/observe/phase";
 import { rememberPhase } from "@/lib/observe/remember";
 
@@ -371,6 +374,46 @@ async function loadRunContext(db: Db, runId: string) {
   return row ?? null;
 }
 
+function placeForStep(step: RunStep) {
+  const builtin = getBuiltinAgent(step.agentSlug);
+  return placeForSlug(step.agentSlug, builtin?.executor === "runner" ? "actions" : "http");
+}
+
+async function installationSecret(db: Db, installationId: number, repositoryId: number, name: string) {
+  const rows = await db
+    .select()
+    .from(secrets)
+    .where(and(eq(secrets.installationId, installationId), eq(secrets.name, name)));
+  const row =
+    rows.find((secret) => secret.repositoryId === repositoryId) ?? rows.find((secret) => secret.repositoryId === null);
+  return row ? decryptSecret(row.value) : null;
+}
+
+async function runProcessStep(deps: OrchestratorDeps, run: Run, repo: Repository, step: RunStep) {
+  const binding = getBinding(step.agentSlug);
+  if (!binding) {
+    await completeStepWithError(deps, step, "This agent has no review harness.");
+    return;
+  }
+  try {
+    const apiKey = await installationSecret(deps.db, repo.installationId, repo.id, "ANTHROPIC_API_KEY");
+    if (!apiKey) {
+      await completeStepWithError(deps, step, "Add an ANTHROPIC_API_KEY secret for this installation.");
+      return;
+    }
+    const request = await buildAgentRequest(deps, run, repo, step);
+    const extra = typeof step.config.instructions === "string" ? `\n\n${step.config.instructions}` : "";
+    const result = await runKodusHarness({
+      instructions: `${binding.instructions}${extra}`,
+      files: request.changedFiles,
+      complete: (prompt) => completeAnthropic(apiKey, prompt),
+    });
+    await completeStepWithResult(deps, run, repo, step, result);
+  } catch (error) {
+    await completeStepWithError(deps, step, errorMessage(error));
+  }
+}
+
 // ─── Stages ────────────────────────────────────────────────────────────────
 
 export async function dispatchNextStage(deps: OrchestratorDeps, runId: string): Promise<void> {
@@ -403,11 +446,12 @@ export async function dispatchNextStage(deps: OrchestratorDeps, runId: string): 
     .set({ status: "running", currentStage: stage, startedAt: ctx.run.startedAt ?? new Date() })
     .where(eq(runs.id, runId));
 
-  // Runner agents go to the repo's Actions workflow; HTTP agents are called from here.
-  const runnerSteps = claimed.filter((step) => getBuiltinAgent(step.agentSlug)?.executor === "runner");
-  const httpSteps = claimed.filter((step) => !runnerSteps.includes(step));
+  // The kodus harness runs here, on the diff. Hermes, OpenClaw, and FixMySlop share one Actions job.
+  const actionsSteps = claimed.filter((step) => placeForStep(step) === "actions");
+  const processSteps = claimed.filter((step) => placeForStep(step) === "process");
+  const httpSteps = claimed.filter((step) => placeForStep(step) === "http");
 
-  if (runnerSteps.length > 0) {
+  if (actionsSteps.length > 0) {
     const github = deps.github(ctx.repo.installationId);
     try {
       await github.dispatchWorkflow(ctx.repo.fullName, WORKFLOW_FILE, ctx.repo.defaultBranch, {
@@ -417,7 +461,7 @@ export async function dispatchNextStage(deps: OrchestratorDeps, runId: string): 
       await log(
         db,
         runId,
-        `Stage ${stage} dispatched to ${WORKFLOW_FILE} (${runnerSteps.map((s) => s.agentName).join(", ")})`,
+        `Stage ${stage} dispatched to ${WORKFLOW_FILE} (${actionsSteps.map((s) => s.agentName).join(", ")})`,
       );
     } catch (error) {
       const hint =
@@ -426,13 +470,16 @@ export async function dispatchNextStage(deps: OrchestratorDeps, runId: string): 
           : "";
       const message = `Could not start the agent workflow: ${errorMessage(error)} ${hint}`.trim();
       await log(db, runId, message, "error");
-      for (const step of runnerSteps) {
+      for (const step of actionsSteps) {
         await completeStepWithError(deps, step, message);
       }
     }
   }
 
-  await Promise.all(httpSteps.map((step) => runHttpStep(deps, ctx.run, ctx.repo, step)));
+  await Promise.all([
+    ...processSteps.map((step) => runProcessStep(deps, ctx.run, ctx.repo, step)),
+    ...httpSteps.map((step) => runHttpStep(deps, ctx.run, ctx.repo, step)),
+  ]);
   await advanceRun(deps, runId);
 }
 
@@ -666,7 +713,7 @@ export async function getStageJob(
       agent: step.agentSlug,
       config: step.config,
       files: step.targetFiles,
-      spec: getBuiltinAgent(step.agentSlug)?.runnerSpec ?? {},
+      spec: { ...getBuiltinAgent(step.agentSlug)?.runnerSpec, ...actionSpec(step.agentSlug) },
     })),
   };
 }

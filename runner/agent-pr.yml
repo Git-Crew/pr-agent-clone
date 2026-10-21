@@ -147,6 +147,10 @@ jobs:
                 else
                   jq -r '.spec.prompt // ""' <<<"$step" > "$RUNNER_TEMP/prompt.txt"
                   export GITCREW_PROMPT_FILE="$RUNNER_TEMP/prompt.txt"
+                  provider=$(jq -r '.spec.provider // empty' <<<"$step")
+                  model=$(jq -r '.spec.model // empty' <<<"$step")
+                  if [ -n "$provider" ]; then export GITCREW_PROVIDER="$provider"; fi
+                  if [ -n "$model" ]; then export GITCREW_MODEL="$model"; fi
                   "$command" > "$out" || true
                   if jq -e '.conclusion' "$out" > /dev/null 2>&1; then
                     jq -c '{ok: true, output: .}' "$out" > "$body"

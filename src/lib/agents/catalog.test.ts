@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { PROVIDERS } from "@/lib/harness/models";
+
 import { fromSarif, toAgentResult } from "./adapters";
 import { defaultSettings, parseSettings } from "./card";
 import { CATALOG, getCatalogCard } from "./catalog";
@@ -10,6 +12,8 @@ describe("catalog", () => {
     const slugs = CATALOG.map((c) => c.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
     expect(getCatalogCard("fixmyslop")?.status).toBe("available");
+    const provider = getCatalogCard("plain-words")?.settings.find((field) => field.key === "provider");
+    expect(provider?.options?.map((option) => option.value)).toEqual([...PROVIDERS]);
   });
 
   it("keeps the FixMySlop card in step with the agent's config schema", () => {

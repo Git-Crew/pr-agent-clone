@@ -16,10 +16,14 @@ export type ModelReply = {
   model?: string;
 };
 
-export function reviewMessages(instructions: string, files: ChangedSlice[]): { system: string; user: string } {
+export function reviewMessages(
+  instructions: string,
+  files: ChangedSlice[],
+  system = SYSTEM,
+): { system: string; user: string } {
   const diff = files.map((file) => `### ${file.path}\n${file.patch ?? "(no patch)"}`).join("\n\n");
   return {
-    system: SYSTEM,
+    system,
     user: `${instructions.trim()}\n\n${diff || "(no changed files)"}`,
   };
 }
@@ -41,9 +45,11 @@ export function resultFromModelText(text: string): AgentResult {
 export async function runKodusHarness(input: {
   instructions: string;
   files: ChangedSlice[];
+  /** Replaces the review JSON contract when the step sets its own system prompt. */
+  system?: string;
   complete: (prompt: { system: string; user: string }) => Promise<ModelReply>;
 }): Promise<AgentResult> {
-  const prompt = reviewMessages(input.instructions, input.files);
+  const prompt = reviewMessages(input.instructions, input.files, input.system);
   const reply = await input.complete(prompt);
   const result = resultFromModelText(reply.text);
   return {
@@ -54,39 +60,5 @@ export async function runKodusHarness(input: {
       ...(reply.inputTokens !== undefined ? { inputTokens: reply.inputTokens } : {}),
       ...(reply.outputTokens !== undefined ? { outputTokens: reply.outputTokens } : {}),
     },
-  };
-}
-
-/** One model call for the kodus harness. The key is an installation secret, never an Actions secret. */
-export async function completeAnthropic(
-  apiKey: string,
-  prompt: { system: string; user: string },
-  model = process.env.GITCREW_MODEL || "claude-sonnet-4-5",
-): Promise<ModelReply> {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 2000,
-      system: prompt.system,
-      messages: [{ role: "user", content: prompt.user }],
-    }),
-  });
-  if (!response.ok) throw new Error(`Model request failed (${response.status})`);
-  const body = (await response.json()) as {
-    content?: { type?: string; text?: string }[];
-    usage?: { input_tokens?: number; output_tokens?: number };
-  };
-  const text = body.content?.find((block) => block.type === "text")?.text ?? "";
-  return {
-    text,
-    inputTokens: body.usage?.input_tokens,
-    outputTokens: body.usage?.output_tokens,
-    model,
   };
 }

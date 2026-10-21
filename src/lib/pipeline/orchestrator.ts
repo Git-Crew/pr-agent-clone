@@ -27,8 +27,9 @@ import type { CheckRunConclusion, GitHubClient, InstallationInfo, InstallationRe
 import { GitHubApiError } from "@/lib/github/client";
 import type { ActionsClaims } from "@/lib/github/oidc";
 import { verifyWebhookSignature } from "@/lib/github/webhook";
-import { actionSpec, getBinding, placeForSlug } from "@/lib/harness/agents";
-import { completeAnthropic, runKodusHarness } from "@/lib/harness/kodus";
+import { actionSpec, getBinding, jobFields, placeForSlug } from "@/lib/harness/agents";
+import { runKodusHarness } from "@/lib/harness/kodus";
+import { completeModel, promptOverride, resolveModel, secretFor } from "@/lib/harness/models";
 import { noteFromFinish } from "@/lib/observe/phase";
 import { rememberPhase } from "@/lib/observe/remember";
 
@@ -396,17 +397,19 @@ async function runProcessStep(deps: OrchestratorDeps, run: Run, repo: Repository
     return;
   }
   try {
-    const apiKey = await installationSecret(deps.db, repo.installationId, repo.id, "ANTHROPIC_API_KEY");
+    const spec = resolveModel(step.config);
+    const apiKey = await installationSecret(deps.db, repo.installationId, repo.id, secretFor(spec.provider));
     if (!apiKey) {
-      await completeStepWithError(deps, step, "Add an ANTHROPIC_API_KEY secret for this installation.");
+      await completeStepWithError(deps, step, `Add a ${secretFor(spec.provider)} secret for this installation.`);
       return;
     }
     const request = await buildAgentRequest(deps, run, repo, step);
-    const extra = typeof step.config.instructions === "string" ? `\n\n${step.config.instructions}` : "";
+    const system = typeof step.config.system === "string" ? step.config.system.trim() : "";
     const result = await runKodusHarness({
-      instructions: `${binding.instructions}${extra}`,
+      instructions: promptOverride(binding.instructions, step.config.instructions),
+      system: system || undefined,
       files: request.changedFiles,
-      complete: (prompt) => completeAnthropic(apiKey, prompt),
+      complete: (prompt) => completeModel(spec, apiKey, prompt),
     });
     await completeStepWithResult(deps, run, repo, step, result);
   } catch (error) {
@@ -713,7 +716,11 @@ export async function getStageJob(
       agent: step.agentSlug,
       config: step.config,
       files: step.targetFiles,
-      spec: { ...getBuiltinAgent(step.agentSlug)?.runnerSpec, ...actionSpec(step.agentSlug) },
+      spec: {
+        ...getBuiltinAgent(step.agentSlug)?.runnerSpec,
+        ...actionSpec(step.agentSlug),
+        ...jobFields(step.agentSlug, step.config),
+      },
     })),
   };
 }

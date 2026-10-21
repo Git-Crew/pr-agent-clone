@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { actionSpec, capabilitiesFor, placeForSlug } from "./agents";
+import { actionSpec, capabilitiesFor, jobFields, placeForSlug } from "./agents";
 import { resultFromModelText, reviewMessages, runKodusHarness } from "./kodus";
 
 describe("agent harnesses", () => {
@@ -18,6 +18,18 @@ describe("agent harnesses", () => {
     expect(actionSpec("hermes")).toMatchObject({ harness: "hermes", command: "hermes" });
     expect(actionSpec("openclaw").command).toBe("openclaw");
     expect(actionSpec("hermes").prompt).toContain("JSON");
+  });
+
+  it("changes the prompt and the model without changing the harness", () => {
+    expect(placeForSlug("hermes")).toBe("actions");
+    expect(
+      jobFields("hermes", { provider: "openai", model: "gpt-4.1", system: "Be brief.", instructions: "Flag secrets." }),
+    ).toEqual({
+      provider: "openai",
+      model: "gpt-4.1",
+      prompt: "Be brief.\n\nFlag secrets.",
+    });
+    expect(jobFields("plain-words", { provider: "grok", model: "grok-4" })).toEqual({});
   });
 
   it("does not give a fork a checkout or a secret", () => {

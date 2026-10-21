@@ -1,5 +1,7 @@
 import { type AgentResult, agentResultSchema } from "@/lib/agents/contract";
 
+import { modelJobFields, promptOverride } from "./models";
+
 // How to add an agent:
 // 1. Add a card in src/lib/agents/catalog.ts (name, settings, coming_soon or available).
 // 2. Add one binding below. The harness decides the machine.
@@ -83,6 +85,18 @@ export function actionSpec(slug: string): Record<string, string> {
   const harness = HARNESSES[binding.harness];
   if (harness.place !== "actions" || !harness.command) return {};
   return { harness: harness.name, command: harness.command, prompt: binding.instructions };
+}
+
+/** Prompt and model fields for the shared Actions job. Blank step fields keep the binding prompt. */
+export function jobFields(slug: string, config: Record<string, unknown>): Record<string, string> {
+  const binding = getBinding(slug);
+  if (!binding || HARNESSES[binding.harness].place !== "actions") return {};
+  const instructions = promptOverride(binding.instructions, config.instructions);
+  const system = typeof config.system === "string" ? config.system.trim() : "";
+  return {
+    ...modelJobFields(config),
+    prompt: system ? `${system}\n\n${instructions}` : instructions,
+  };
 }
 
 export type Capability = "read_diff" | "read_tree" | "exec" | "secrets" | "write_branch";

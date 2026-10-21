@@ -10,6 +10,49 @@ const SEVERITY_OPTIONS = [
   { value: "low", label: "Everything" },
 ];
 
+const MODEL_SETTINGS: SettingField[] = [
+  {
+    key: "provider",
+    label: "Model provider",
+    help: "Claude, OpenAI, or Grok. The harness and the prompts stay the same.",
+    type: "select",
+    options: [
+      { value: "anthropic", label: "Claude" },
+      { value: "openai", label: "OpenAI" },
+      { value: "grok", label: "Grok" },
+    ],
+    default: "anthropic",
+  },
+  {
+    key: "model",
+    label: "Model",
+    help: "Any model id that provider accepts. Empty uses the provider default.",
+    type: "text",
+    default: "",
+  },
+  {
+    key: "instructions",
+    label: "Instructions",
+    help: "Replaces this agent's instructions. Empty keeps the agent's own.",
+    type: "textarea",
+    default: "",
+  },
+  {
+    key: "system",
+    label: "System prompt",
+    help: "Replaces the system prompt. Empty keeps the review JSON contract.",
+    type: "textarea",
+    default: "",
+    advanced: true,
+  },
+];
+
+const MODEL_SECRETS = [
+  { name: "ANTHROPIC_API_KEY", label: "Claude API key" },
+  { name: "OPENAI_API_KEY", label: "OpenAI API key" },
+  { name: "XAI_API_KEY", label: "Grok API key" },
+];
+
 const FIXMYSLOP_SETTINGS: SettingField[] = [
   {
     key: "failOn",
@@ -68,8 +111,8 @@ export const CATALOG: AgentCard[] = [
     by: "GitCrew",
     status: "coming_soon",
     runtime: "prompt",
-    settings: [],
-    secrets: [{ name: "ANTHROPIC_API_KEY", label: "LLM provider key" }],
+    settings: MODEL_SETTINGS,
+    secrets: MODEL_SECRETS,
   },
   {
     slug: "ponytail",
@@ -80,8 +123,8 @@ export const CATALOG: AgentCard[] = [
     by: "GitCrew",
     status: "coming_soon",
     runtime: "command",
-    settings: [],
-    secrets: [],
+    settings: MODEL_SETTINGS,
+    secrets: MODEL_SECRETS,
   },
   {
     slug: "hermes",
@@ -93,7 +136,7 @@ export const CATALOG: AgentCard[] = [
     docsUrl: "https://github.com/NousResearch/hermes-agent",
     status: "coming_soon",
     runtime: "command",
-    settings: [],
+    settings: MODEL_SETTINGS,
     secrets: [],
   },
   {
@@ -105,7 +148,7 @@ export const CATALOG: AgentCard[] = [
     docsUrl: "https://github.com/openclaw/openclaw",
     status: "coming_soon",
     runtime: "command",
-    settings: [],
+    settings: MODEL_SETTINGS,
     secrets: [],
   },
 ];

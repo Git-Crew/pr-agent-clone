@@ -204,6 +204,11 @@ export class GitHubApp {
     return request<T>(this.fetchImpl, await createAppJwt(this.appId, this.privateKeyPem), method, path);
   }
 
+  /** The App itself: its current name and slug change when it is renamed on GitHub. */
+  async getAppInfo(): Promise<{ slug: string; name: string; html_url: string }> {
+    return this.appRequest("GET", "/app");
+  }
+
   async getInstallation(installationId: number): Promise<InstallationInfo> {
     return this.appRequest<InstallationInfo>("GET", `/app/installations/${installationId}`);
   }

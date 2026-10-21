@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireUser } from "@/lib/db/dashboard";
 import { canManageGitHubApp, getAppUrl } from "@/lib/env";
 import { APP_EVENTS, APP_PERMISSIONS, isLocalUrl } from "@/lib/github/manifest";
-import { getGitHubAppConfig } from "@/lib/server/deps";
+import { syncGitHubAppIdentity } from "@/lib/server/deps";
 
 import { PageHeader } from "../_components/page-header";
 import { CreateAppForm } from "./_components/create-app-form";
@@ -31,7 +31,7 @@ function defaultAppName(appUrl: string) {
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ created?: string; error?: string }> }) {
   const user = await requireUser();
-  const [config, params] = await Promise.all([getGitHubAppConfig(), searchParams]);
+  const [config, params] = await Promise.all([syncGitHubAppIdentity(), searchParams]);
   const appUrl = getAppUrl();
   const isAdmin = canManageGitHubApp(user);
   const error = params.error ? (ERRORS[params.error] ?? "Something went wrong.") : null;
@@ -89,6 +89,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
                 </a>
               </Button>
             ) : null}
+            <p className="basis-full text-muted-foreground text-sm">
+              Everyone sees this App&apos;s name on their pull requests (as <code>{config.GITHUB_APP_SLUG}[bot]</code>).
+              To rename it or add a logo, open it on GitHub → General → change the name or upload a logo. This page
+              picks up the new name automatically.
+            </p>
           </CardContent>
         </Card>
       ) : (

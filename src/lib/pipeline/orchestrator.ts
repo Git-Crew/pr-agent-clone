@@ -23,6 +23,7 @@ import type { CheckRunConclusion, GitHubClient, InstallationInfo, InstallationRe
 import { GitHubApiError } from "@/lib/github/client";
 import type { ActionsClaims } from "@/lib/github/oidc";
 
+import { checkRunName } from "./naming";
 import { evaluateStep } from "./rules";
 
 // The run state machine (docs/ARCHITECTURE.md §3):
@@ -30,7 +31,6 @@ import { evaluateStep } from "./rules";
 //   → runner POST result (submitStepResult) → advanceRun → next stage or finalizeRun.
 
 export const WORKFLOW_FILE = "agent-pr.yml";
-const CHECK_NAME_PREFIX = "Agent PR";
 const MAX_CHECK_SUMMARY = 60_000;
 
 export type OrchestratorDeps = {
@@ -51,9 +51,7 @@ export class RunnerRequestError extends Error {
 
 const TERMINAL_STEP = new Set(["completed", "skipped", "cancelled"]);
 
-export function checkRunName(agentName: string) {
-  return `${CHECK_NAME_PREFIX} / ${agentName}`;
-}
+export { checkRunName };
 
 export function runUrl(appUrl: string, runId: string) {
   return `${appUrl}/dashboard/runs/${runId}`;

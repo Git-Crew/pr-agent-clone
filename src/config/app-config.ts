@@ -2,6 +2,9 @@ import packageJson from "../../package.json";
 
 const currentYear = new Date().getFullYear();
 
+/** Product name shown to users and on GitHub (check runs, review footers). The GitHub App's own name is set on GitHub. */
+export const BRAND = "GitCrew";
+
 export const APP_CONFIG = {
   name: "pr/agents",
   version: packageJson.version,

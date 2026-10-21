@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { checkRunName } from "@/lib/pipeline/naming";
 import { type PipelineStepInput, parseGlobList, pipelineInputSchema } from "@/lib/pipeline/schema";
 import { savePipeline } from "@/server/dashboard-actions";
 
@@ -179,7 +180,7 @@ export function PipelineEditor({
                       {step.enabled ? null : <Badge variant="outline">Off</Badge>}
                     </CardTitle>
                     <CardDescription>
-                      Check name: <code>Agent PR / {agent?.name ?? "?"}</code>
+                      Check name: <code>{checkRunName(agent?.name ?? "?")}</code>
                     </CardDescription>
                     <CardAction className="flex gap-1">
                       <Button

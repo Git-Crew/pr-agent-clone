@@ -56,3 +56,8 @@ export async function saveGitHubAppFromManifest(
   };
   await db.insert(appConfig).values(values).onConflictDoUpdate({ target: appConfig.id, set: values });
 }
+
+/** Keep the stored slug and URL in step with GitHub after the App is renamed there. */
+export async function updateAppIdentity(db: Db, identity: { slug: string; htmlUrl: string }): Promise<void> {
+  await db.update(appConfig).set({ slug: identity.slug, htmlUrl: identity.htmlUrl }).where(eq(appConfig.id, 1));
+}

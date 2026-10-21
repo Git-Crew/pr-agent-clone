@@ -1,3 +1,4 @@
+import { BRAND } from "@/config/app-config";
 import type { ReviewComment, ReviewInput } from "@/lib/github/client";
 
 import type { AgentComment, AgentResult } from "./contract";
@@ -48,7 +49,7 @@ export function buildReview(params: {
     if (outside.length > 100) body.push(`- …and ${outside.length - 100} more`);
     body.push("", "</details>");
   }
-  body.push("", `<sub>Posted by Agent PR · [run details](${runUrl})</sub>`);
+  body.push("", `<sub>Posted by ${BRAND} · [run details](${runUrl})</sub>`);
 
   return {
     review: { commit_id: headSha, event: "COMMENT", body: body.join("\n"), comments: inline },

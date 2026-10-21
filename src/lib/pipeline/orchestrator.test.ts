@@ -189,7 +189,7 @@ describe("run lifecycle", () => {
     expect(runId).toBeTruthy();
     if (!runId) return;
 
-    const [check] = github.checkByName("Agent PR / FixMySlop");
+    const [check] = github.checkByName("GitCrew / FixMySlop");
     expect(check).toMatchObject({ status: "queued", head_sha: "a".repeat(40) });
     expect(check.details_url).toBe(`https://agent-pr.test/dashboard/runs/${runId}`);
     expect(github.dispatches).toEqual([

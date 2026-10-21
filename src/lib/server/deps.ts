@@ -2,7 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db/drizzle";
 import { getAppUrl } from "@/lib/env";
-import { loadGitHubAppConfig, type ResolvedAppConfig } from "@/lib/github/app-config";
+import { loadGitHubAppConfig, type ResolvedAppConfig, updateAppIdentity } from "@/lib/github/app-config";
 import { GitHubApp } from "@/lib/github/client";
 import type { OrchestratorDeps } from "@/lib/pipeline/orchestrator";
 
@@ -32,6 +32,26 @@ export async function requireGitHubAppConfig(): Promise<ResolvedAppConfig> {
 /** Forget the cached credentials (after the setup page saves a new App). */
 export function resetGitHubAppCache() {
   cached = null;
+}
+
+/**
+ * Ask GitHub for the App's current name and slug (they change when it is renamed) and store them.
+ * Best effort: on any error the stored values are kept.
+ */
+export async function syncGitHubAppIdentity(): Promise<ResolvedAppConfig | null> {
+  const config = await getGitHubAppConfig();
+  if (!config || config.source !== "database" || !cached) return config;
+  try {
+    const info = await cached.app.getAppInfo();
+    if (info.slug !== config.GITHUB_APP_SLUG || info.html_url !== config.htmlUrl) {
+      await updateAppIdentity(db, { slug: info.slug, htmlUrl: info.html_url });
+      resetGitHubAppCache();
+      return getGitHubAppConfig();
+    }
+  } catch (error) {
+    console.warn("Could not refresh the GitHub App identity", error);
+  }
+  return config;
 }
 
 export async function getOrchestratorDeps(): Promise<OrchestratorDeps> {

@@ -23,7 +23,7 @@ export function SetupChecklist({ appConfigured, installed, hasRepos, firstRun }:
     },
     {
       done: installed && hasRepos,
-      title: "Install Agent PR on your repositories",
+      title: "Install GitCrew on your repositories",
       description: "Pick the repos agents may run on. New repos start with the FixMySlop agent.",
       action: (
         <Button asChild size="sm" variant="outline">
@@ -47,7 +47,7 @@ export function SetupChecklist({ appConfigured, installed, hasRepos, firstRun }:
     {
       done: firstRun,
       title: "Open a pull request",
-      description: "Agent PR posts a check run per agent and a review with inline comments.",
+      description: "GitCrew posts a check run per agent and a review with inline comments.",
       action: null,
     },
   ];

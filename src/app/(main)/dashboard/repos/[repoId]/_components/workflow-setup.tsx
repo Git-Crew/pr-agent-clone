@@ -33,7 +33,7 @@ export function WorkflowSetup({
           <CardTitle>1. Add the workflow file</CardTitle>
           <CardDescription>
             Agents run as a GitHub Actions job in this repository. Commit this file to <code>{defaultBranch}</code>. It
-            only runs when Agent PR dispatches it, has no secrets, and never runs code from the pull request.
+            only runs when GitCrew dispatches it, has no secrets, and never runs code from the pull request.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

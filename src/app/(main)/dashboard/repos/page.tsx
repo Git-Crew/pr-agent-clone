@@ -10,7 +10,7 @@ import { listRepos, requireUser } from "@/lib/db/dashboard";
 import { PageHeader } from "../_components/page-header";
 import { ReposTable } from "./_components/repos-table";
 
-export const metadata: Metadata = { title: "Repositories · Agent PR" };
+export const metadata: Metadata = { title: "Repositories · GitCrew" };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ installed?: string }> }) {
   const user = await requireUser();
@@ -35,7 +35,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
 
       {installed ? (
         <Alert>
-          <AlertTitle>Agent PR is installed</AlertTitle>
+          <AlertTitle>GitCrew is installed</AlertTitle>
           <AlertDescription>
             New repositories start with the FixMySlop agent. Open a repository to add the workflow file and tune its
             pipeline.
@@ -51,7 +51,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
             </EmptyMedia>
             <EmptyTitle>No repositories yet</EmptyTitle>
             <EmptyDescription>
-              Install the Agent PR GitHub App on your account or organization and pick the repositories agents may run
+              Install the GitCrew GitHub App on your account or organization and pick the repositories agents may run
               on.
             </EmptyDescription>
           </EmptyHeader>

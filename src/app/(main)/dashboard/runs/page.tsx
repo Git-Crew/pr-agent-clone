@@ -11,7 +11,7 @@ import { PageHeader } from "../_components/page-header";
 import { RunsTable } from "../_components/runs-table";
 import { RunFilters } from "./_components/run-filters";
 
-export const metadata: Metadata = { title: "Runs · Agent PR" };
+export const metadata: Metadata = { title: "Runs · GitCrew" };
 
 const PAGE_SIZE = 25;
 const STATUSES: RunStatus[] = ["queued", "running", "completed", "cancelled"];

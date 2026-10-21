@@ -27,7 +27,7 @@ export async function GET(request: Request, context: Context) {
   }
 }
 
-const failSchema = z.object({ error: z.string().max(5_000).default("The Agent PR workflow failed") });
+const failSchema = z.object({ error: z.string().max(5_000).default("The GitCrew workflow failed") });
 
 /** The runner's `if: failure()` step: fail every step of the stage that never reported. */
 export async function POST(request: Request, context: Context) {

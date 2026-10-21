@@ -13,7 +13,7 @@ import { syncGitHubAppIdentity } from "@/lib/server/deps";
 import { PageHeader } from "../_components/page-header";
 import { CreateAppForm } from "./_components/create-app-form";
 
-export const metadata: Metadata = { title: "GitHub App · Agent PR" };
+export const metadata: Metadata = { title: "GitHub App · GitCrew" };
 
 const ERRORS: Record<string, string> = {
   state_mismatch: "The setup link expired. Start again.",
@@ -26,7 +26,7 @@ const ERRORS: Record<string, string> = {
 
 function defaultAppName(appUrl: string) {
   const host = new URL(appUrl).hostname.split(".")[0] ?? "local";
-  return `Agent PR ${host}`.slice(0, 34);
+  return `GitCrew ${host}`.slice(0, 34);
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ created?: string; error?: string }> }) {
@@ -41,7 +41,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     <div className="flex flex-col gap-4 md:gap-6">
       <PageHeader
         title="GitHub App"
-        description="Agent PR talks to GitHub through one GitHub App: webhooks, check runs, reviews and workflow dispatch."
+        description="GitCrew talks to GitHub through one GitHub App: webhooks, check runs, reviews and workflow dispatch."
       />
 
       {error ? (

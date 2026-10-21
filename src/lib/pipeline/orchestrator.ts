@@ -1,9 +1,12 @@
 import { and, asc, eq, inArray, isNull, notInArray } from "drizzle-orm";
 
-import { type AgentResult, agentResultSchema } from "@/lib/agents/contract";
+import { toAgentResult } from "@/lib/agents/adapters";
+import { type AgentRequest, type AgentResult, agentResultSchema } from "@/lib/agents/contract";
 import { buildDiffIndex } from "@/lib/agents/diff";
+import { callHttpAgent } from "@/lib/agents/http";
 import { BUILTIN_AGENTS, getBuiltinAgent, resolveAgentConfig } from "@/lib/agents/registry";
 import { buildReview } from "@/lib/agents/review";
+import { decryptSecret } from "@/lib/crypto/secrets";
 import {
   agents,
   type Conclusion,
@@ -22,15 +25,16 @@ import type { Db } from "@/lib/db/types";
 import type { CheckRunConclusion, GitHubClient, InstallationInfo, InstallationRepository } from "@/lib/github/client";
 import { GitHubApiError } from "@/lib/github/client";
 import type { ActionsClaims } from "@/lib/github/oidc";
+import { verifyWebhookSignature } from "@/lib/github/webhook";
 
-import { evaluateStep } from "./rules";
+import { checkRunName } from "./naming";
+import { evaluateStep, isTriggered } from "./rules";
 
 // The run state machine (docs/ARCHITECTURE.md §3):
 //   webhook → startRunForPullRequest → dispatchNextStage → runner GET job (getStageJob)
 //   → runner POST result (submitStepResult) → advanceRun → next stage or finalizeRun.
 
 export const WORKFLOW_FILE = "agent-pr.yml";
-const CHECK_NAME_PREFIX = "Agent PR";
 const MAX_CHECK_SUMMARY = 60_000;
 
 export type OrchestratorDeps = {
@@ -51,9 +55,7 @@ export class RunnerRequestError extends Error {
 
 const TERMINAL_STEP = new Set(["completed", "skipped", "cancelled"]);
 
-export function checkRunName(agentName: string) {
-  return `${CHECK_NAME_PREFIX} / ${agentName}`;
-}
+export { checkRunName };
 
 export function runUrl(appUrl: string, runId: string) {
   return `${appUrl}/dashboard/runs/${runId}`;
@@ -182,6 +184,8 @@ export async function markRepositoriesRemoved(db: Db, repoIds: number[]) {
 
 export type PullRequestEvent = {
   action: string;
+  /** The label just added, on "labeled" events. */
+  label?: { name: string };
   installation: { id: number };
   repository: InstallationRepository & { owner: { id: number; login: string; type: string; avatar_url: string } };
   pull_request: {
@@ -190,13 +194,19 @@ export type PullRequestEvent = {
     html_url: string;
     state: string;
     draft?: boolean;
+    labels?: { name: string }[];
     user: { login: string } | null;
     head: { sha: string; ref: string; repo: { full_name: string } | null };
     base: { sha: string; ref: string; repo: { full_name: string } };
   };
 };
 
-const RUN_ACTIONS = new Set(["opened", "synchronize", "reopened", "ready_for_review"]);
+const RUN_ACTIONS = new Set(["opened", "synchronize", "reopened", "ready_for_review", "labeled"]);
+
+/** Built-in runner agents, and HTTP agents with a URL, can run today. */
+function canRun(agent: typeof agents.$inferSelect): boolean {
+  return Boolean(getBuiltinAgent(agent.slug)) || (agent.kind === "http" && Boolean(agent.endpointUrl));
+}
 
 export async function startRunForPullRequest(deps: OrchestratorDeps, event: PullRequestEvent): Promise<string | null> {
   const { db } = deps;
@@ -230,9 +240,19 @@ export async function startRunForPullRequest(deps: OrchestratorDeps, event: Pull
     .innerJoin(agents, eq(pipelineSteps.agentId, agents.id))
     .where(eq(pipelineSteps.repositoryId, repo.id))
     .orderBy(asc(pipelineSteps.stage), asc(pipelineSteps.position));
-  if (steps.length === 0) return null;
+  // "When should it run?": steps this event does not trigger are left out of the run entirely.
+  const triggerFacts = {
+    action: event.action,
+    labels: (pr.labels ?? []).map((label) => label.name),
+    addedLabel: event.label?.name ?? null,
+  };
+  const triggered = steps.filter(({ step }) => isTriggered(step, triggerFacts));
+  if (triggered.length === 0) return null;
 
-  await cancelOpenRunsForPr(deps, repo.id, pr.number, `Superseded by ${pr.head.sha.slice(0, 7)}`);
+  // Adding a label only starts that label's agents, so it must not cancel the run for the latest push.
+  if (event.action !== "labeled") {
+    await cancelOpenRunsForPr(deps, repo.id, pr.number, `Superseded by ${pr.head.sha.slice(0, 7)}`);
+  }
 
   const github = deps.github(event.installation.id);
   const files = await github.listPullFiles(repo.fullName, pr.number);
@@ -261,12 +281,11 @@ export async function startRunForPullRequest(deps: OrchestratorDeps, event: Pull
     })
     .returning();
 
-  for (const { step, agent } of steps) {
-    const builtin = getBuiltinAgent(agent.slug);
+  for (const { step, agent } of triggered) {
     let decision = evaluateStep(step, facts);
     let config: Record<string, unknown> = step.config;
-    if (decision.run && !builtin) {
-      decision = { run: false, reason: `${agent.kind} agents are not supported by this version yet` };
+    if (decision.run && !canRun(agent)) {
+      decision = { run: false, reason: `${agent.name} can't run yet` };
     }
     if (decision.run) {
       try {
@@ -283,6 +302,9 @@ export async function startRunForPullRequest(deps: OrchestratorDeps, event: Pull
       agentName: agent.name,
       stage: step.stage,
       blocking: step.blocking,
+      reviewMode: step.reviewMode,
+      commentStyle: step.commentStyle,
+      maxComments: step.maxComments,
       config,
       targetFiles: decision.run ? decision.files : [],
       status: decision.run ? "pending" : "skipped",
@@ -379,29 +401,149 @@ export async function dispatchNextStage(deps: OrchestratorDeps, runId: string): 
     .set({ status: "running", currentStage: stage, startedAt: ctx.run.startedAt ?? new Date() })
     .where(eq(runs.id, runId));
 
-  const github = deps.github(ctx.repo.installationId);
-  try {
-    await github.dispatchWorkflow(ctx.repo.fullName, WORKFLOW_FILE, ctx.repo.defaultBranch, {
-      run_id: runId,
-      stage: String(stage),
-    });
-    await log(
-      db,
-      runId,
-      `Stage ${stage} dispatched to ${WORKFLOW_FILE} (${claimed.map((s) => s.agentName).join(", ")})`,
-    );
-  } catch (error) {
-    const hint =
-      error instanceof GitHubApiError && (error.status === 404 || error.status === 422)
-        ? `Add .github/workflows/${WORKFLOW_FILE} to ${ctx.repo.defaultBranch} (the dashboard shows the file).`
-        : "";
-    const message = `Could not start the Agent PR workflow: ${errorMessage(error)} ${hint}`.trim();
-    await log(db, runId, message, "error");
-    for (const step of claimed) {
-      await completeStepWithError(deps, step, message);
+  // Runner agents go to the repo's Actions workflow; HTTP agents are called from here.
+  const runnerSteps = claimed.filter((step) => getBuiltinAgent(step.agentSlug)?.executor === "runner");
+  const httpSteps = claimed.filter((step) => !runnerSteps.includes(step));
+
+  if (runnerSteps.length > 0) {
+    const github = deps.github(ctx.repo.installationId);
+    try {
+      await github.dispatchWorkflow(ctx.repo.fullName, WORKFLOW_FILE, ctx.repo.defaultBranch, {
+        run_id: runId,
+        stage: String(stage),
+      });
+      await log(
+        db,
+        runId,
+        `Stage ${stage} dispatched to ${WORKFLOW_FILE} (${runnerSteps.map((s) => s.agentName).join(", ")})`,
+      );
+    } catch (error) {
+      const hint =
+        error instanceof GitHubApiError && (error.status === 404 || error.status === 422)
+          ? `Add .github/workflows/${WORKFLOW_FILE} to ${ctx.repo.defaultBranch} (the dashboard shows the file).`
+          : "";
+      const message = `Could not start the agent workflow: ${errorMessage(error)} ${hint}`.trim();
+      await log(db, runId, message, "error");
+      for (const step of runnerSteps) {
+        await completeStepWithError(deps, step, message);
+      }
     }
-    await advanceRun(deps, runId);
   }
+
+  await Promise.all(httpSteps.map((step) => runHttpStep(deps, ctx.run, ctx.repo, step)));
+  await advanceRun(deps, runId);
+}
+
+// ─── HTTP agents ───────────────────────────────────────────────────────────
+
+const MAX_PATCH_CHARS = 400_000;
+
+async function buildAgentRequest(
+  deps: OrchestratorDeps,
+  run: Run,
+  repo: Repository,
+  step: RunStep,
+): Promise<AgentRequest> {
+  const files = await deps.github(repo.installationId).listPullFiles(repo.fullName, run.prNumber);
+  const wanted = new Set(step.targetFiles);
+  let budget = MAX_PATCH_CHARS;
+  const changedFiles = files
+    .filter((file) => wanted.has(file.filename))
+    .map((file) => {
+      const patch = file.patch && file.patch.length <= budget ? file.patch : undefined;
+      if (patch) budget -= patch.length;
+      return { path: file.filename, status: file.status, additions: file.additions, deletions: file.deletions, patch };
+    });
+  return {
+    version: 1,
+    runId: run.id,
+    stepId: step.id,
+    agent: { slug: step.agentSlug, config: step.config },
+    repository: { id: repo.id, fullName: repo.fullName, defaultBranch: repo.defaultBranch, private: repo.private },
+    pullRequest: {
+      number: run.prNumber,
+      title: run.prTitle,
+      url: run.prUrl,
+      author: run.prAuthor,
+      headSha: run.headSha,
+      baseSha: run.baseSha,
+      headRef: run.headRef,
+      baseRef: run.baseRef,
+      isFork: run.isFork,
+    },
+    changedFiles,
+    callbackUrl: `${deps.appUrl}/api/agents/steps/${step.id}/result`,
+  };
+}
+
+async function runHttpStep(deps: OrchestratorDeps, run: Run, repo: Repository, step: RunStep): Promise<void> {
+  const { db } = deps;
+  const [agent] = step.agentId ? await db.select().from(agents).where(eq(agents.id, step.agentId)).limit(1) : [];
+  if (!agent?.endpointUrl || !agent.signingSecret) {
+    await completeStepWithError(deps, step, "This agent has no URL or secret. Reconnect it on the Agents page.");
+    return;
+  }
+  await db.update(runSteps).set({ status: "running", startedAt: new Date() }).where(eq(runSteps.id, step.id));
+  await safeUpdateCheckRun(deps, repo, step, { status: "in_progress", started_at: new Date().toISOString() });
+
+  try {
+    const outcome = await callHttpAgent({
+      url: agent.endpointUrl,
+      secret: decryptSecret(agent.signingSecret),
+      agentName: agent.name,
+      request: await buildAgentRequest(deps, run, repo, step),
+    });
+    if (outcome.kind === "accepted") {
+      await log(db, run.id, `${agent.name}: accepted, waiting for its result`, "info", step.id);
+    } else if (outcome.kind === "result") {
+      await completeStepWithResult(deps, run, repo, { ...step, status: "running" }, outcome.result);
+    } else {
+      await completeStepWithError(deps, step, outcome.error);
+    }
+  } catch (error) {
+    await completeStepWithError(deps, step, `Could not call the agent: ${errorMessage(error)}`);
+  }
+}
+
+/** An HTTP agent that answered 202 posts its findings here, signed with its secret. */
+export async function submitAgentCallback(
+  deps: OrchestratorDeps,
+  stepId: string,
+  rawBody: string,
+  signature: string | null,
+  contentType: string,
+): Promise<{ conclusion: Conclusion }> {
+  const { db } = deps;
+  const [row] = await db
+    .select({ step: runSteps, agent: agents })
+    .from(runSteps)
+    .innerJoin(agents, eq(agents.id, runSteps.agentId))
+    .where(eq(runSteps.id, stepId))
+    .limit(1);
+  if (!row || row.agent.kind !== "http" || !row.agent.signingSecret) throw new RunnerRequestError(404, "Unknown step");
+  if (!verifyWebhookSignature(decryptSecret(row.agent.signingSecret), rawBody, signature)) {
+    throw new RunnerRequestError(401, "Invalid signature");
+  }
+  if (row.step.status !== "running" && row.step.status !== "queued") {
+    throw new RunnerRequestError(409, `Step is already ${row.step.status}`);
+  }
+  const ctx = await loadRunContext(db, row.step.runId);
+  if (!ctx) throw new RunnerRequestError(404, "Unknown run");
+
+  let conclusion: Conclusion;
+  try {
+    const result = toAgentResult(rawBody, row.agent.name, contentType);
+    conclusion = await completeStepWithResult(deps, ctx.run, ctx.repo, row.step, result);
+  } catch (error) {
+    if (error instanceof RunnerRequestError) throw error;
+    conclusion = await completeStepWithError(
+      deps,
+      row.step,
+      `Could not read the agent's result: ${errorMessage(error)}`,
+    );
+  }
+  await advanceRun(deps, row.step.runId);
+  return { conclusion };
 }
 
 /** Called after any step finishes. Moves to the next stage, stops on a blocking failure, or finalizes. */
@@ -653,8 +795,9 @@ async function completeStepWithResult(
   if (claimed.length === 0) throw new RunnerRequestError(409, "Step already completed");
 
   let reviewId: number | null = null;
-  if (result.comments.length > 0) {
-    const maxComments = typeof step.config.maxComments === "number" ? step.config.maxComments : 30;
+  if (result.comments.length > 0 || result.conclusion !== "success") {
+    // "How chatty?": summary style puts every finding in the review body instead of on lines.
+    const maxComments = step.commentStyle === "summary" ? 0 : step.maxComments;
     try {
       const files = await github.listPullFiles(repo.fullName, run.prNumber);
       const built = buildReview({
@@ -664,6 +807,7 @@ async function completeStepWithResult(
         headSha: run.headSha,
         maxComments,
         runUrl: runUrl(deps.appUrl, run.id),
+        reviewMode: step.reviewMode,
       });
       if (built.review) {
         try {
@@ -677,6 +821,7 @@ async function completeStepWithResult(
             diff: new Map(),
             headSha: run.headSha,
             maxComments: 0,
+            reviewMode: step.reviewMode,
             runUrl: runUrl(deps.appUrl, run.id),
           });
           if (fallback.review) reviewId = (await github.createReview(repo.fullName, run.prNumber, fallback.review)).id;

@@ -28,61 +28,7 @@ import {
 
 // End-to-end tests of the run state machine against a real Postgres (PGlite, in memory) and a fake GitHub.
 
-const INSTALLATION = 1001;
-const REPO: InstallationRepository = { id: 42, full_name: "octo/app", private: false, default_branch: "main" };
-
-class FakeGitHub implements GitHubClient {
-  files: PullFile[] = [
-    {
-      filename: "src/a.py",
-      status: "modified",
-      additions: 2,
-      deletions: 0,
-      patch: "@@ -1,1 +1,3 @@\n import os\n+x = 1\n+y = 2",
-    },
-    { filename: "docs/notes.md", status: "added", additions: 1, deletions: 0, patch: "@@ -0,0 +1 @@\n+hi" },
-    { filename: "src/gone.py", status: "removed", additions: 0, deletions: 3 },
-  ];
-  checkRuns = new Map<number, CheckRunInput & { name: string; head_sha: string }>();
-  checkUpdates: { id: number; input: CheckRunInput }[] = [];
-  reviews: ReviewInput[] = [];
-  dispatches: { fullName: string; file: string; ref: string; inputs: Record<string, string> }[] = [];
-  dispatchError: Error | null = null;
-  private nextId = 1;
-
-  async listPullFiles() {
-    return this.files;
-  }
-  async createCheckRun(_fullName: string, input: CheckRunInput & { name: string; head_sha: string }) {
-    const id = this.nextId++;
-    this.checkRuns.set(id, { ...input });
-    return { id };
-  }
-  async updateCheckRun(_fullName: string, id: number, input: CheckRunInput) {
-    this.checkUpdates.push({ id, input });
-    this.checkRuns.set(id, {
-      ...(this.checkRuns.get(id) as CheckRunInput & { name: string; head_sha: string }),
-      ...input,
-    });
-  }
-  async createReview(_fullName: string, _pr: number, input: ReviewInput) {
-    this.reviews.push(input);
-    return { id: 500 + this.reviews.length };
-  }
-  async dispatchWorkflow(fullName: string, file: string, ref: string, inputs: Record<string, string>) {
-    if (this.dispatchError) throw this.dispatchError;
-    this.dispatches.push({ fullName, file, ref, inputs });
-  }
-  async workflowExists() {
-    return true;
-  }
-  async listRepositories() {
-    return [REPO];
-  }
-  checkByName(name: string) {
-    return [...this.checkRuns.values()].filter((c) => c.name === name);
-  }
-}
+import { FakeGitHub, INSTALLATION, REPO } from "@/lib/test/fake-github";
 
 const claims: ActionsClaims = {
   repository: "octo/app",
@@ -189,7 +135,7 @@ describe("run lifecycle", () => {
     expect(runId).toBeTruthy();
     if (!runId) return;
 
-    const [check] = github.checkByName("Agent PR / FixMySlop");
+    const [check] = github.checkByName("GitCrew / FixMySlop");
     expect(check).toMatchObject({ status: "queued", head_sha: "a".repeat(40) });
     expect(check.details_url).toBe(`https://agent-pr.test/dashboard/runs/${runId}`);
     expect(github.dispatches).toEqual([

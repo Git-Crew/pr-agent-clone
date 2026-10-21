@@ -16,7 +16,7 @@ import { CancelRunButton } from "./_components/cancel-run-button";
 import { RunLogs } from "./_components/run-logs";
 import { StepCard } from "./_components/step-card";
 
-export const metadata: Metadata = { title: "Run · Agent PR" };
+export const metadata: Metadata = { title: "Run · GitCrew" };
 
 export default async function Page({ params }: { params: Promise<{ runId: string }> }) {
   const user = await requireUser();

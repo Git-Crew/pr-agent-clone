@@ -12,7 +12,7 @@ import { getGitHubAppConfig } from "@/lib/server/deps";
 import { PageHeader } from "../_components/page-header";
 import { SecretsManager } from "./_components/secrets-manager";
 
-export const metadata: Metadata = { title: "Settings · Agent PR" };
+export const metadata: Metadata = { title: "Settings · GitCrew" };
 
 function installationSettingsUrl(accountType: string, accountLogin: string, installationId: number) {
   return accountType === "Organization"
@@ -54,7 +54,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
         <Card>
           <CardHeader>
             <CardTitle>Installations</CardTitle>
-            <CardDescription>GitHub accounts where Agent PR is installed and you have access.</CardDescription>
+            <CardDescription>GitHub accounts where GitCrew is installed and you have access.</CardDescription>
             <CardAction>
               <Button asChild size="sm">
                 <a href="/api/auth/github/install">

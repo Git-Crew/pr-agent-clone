@@ -2,30 +2,36 @@
 
 import { useState, useTransition } from "react";
 
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+
+import { ArrowDown, ArrowUp, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { defaultSettings, type SettingField } from "@/lib/agents/card";
+import { checkRunName } from "@/lib/pipeline/naming";
 import { type PipelineStepInput, parseGlobList, pipelineInputSchema } from "@/lib/pipeline/schema";
 import { savePipeline } from "@/server/dashboard-actions";
 
-import { FixMySlopConfigFields } from "./fixmyslop-config-fields";
+import { CardSettingsFields } from "./card-settings-fields";
 
-type AgentOption = { id: string; slug: string; name: string; defaultConfig: Record<string, unknown> };
+export type EditorAgent = { id: string; slug: string; name: string; tagline: string; settings: SettingField[] };
 type EditorStep = PipelineStepInput & { key: string };
+type Strictness = "comment" | "request_changes" | "block";
 
 let nextKey = 0;
 const withKey = (step: PipelineStepInput): EditorStep => ({ ...step, key: `step-${nextKey++}` });
 
-function newStep(agent: AgentOption, stage: number): EditorStep {
+function newStep(agent: EditorAgent, stage: number): EditorStep {
   return withKey({
     agentId: agent.id,
     stage,
@@ -36,17 +42,33 @@ function newStep(agent: AgentOption, stage: number): EditorStep {
     branches: [],
     runOnDrafts: false,
     runOnForks: true,
-    config: { ...agent.defaultConfig },
+    trigger: "every_push",
+    triggerLabel: null,
+    reviewMode: "comment",
+    commentStyle: "inline",
+    maxComments: 30,
+    config: defaultSettings(agent.settings),
   });
 }
 
-function ToggleField({
-  id,
-  label,
-  description,
-  checked,
-  onChange,
-}: {
+function strictnessOf(step: PipelineStepInput): Strictness {
+  if (step.blocking) return "block";
+  return step.reviewMode === "request_changes" ? "request_changes" : "comment";
+}
+
+const STRICTNESS: Record<Strictness, { label: string; help: string }> = {
+  comment: { label: "Just comment", help: "Leaves comments. Never stops anyone." },
+  request_changes: {
+    label: "Ask for changes when it fails",
+    help: "Marks its review as “changes requested”. People can still merge.",
+  },
+  block: {
+    label: "Block merging when it fails",
+    help: "Its check fails and later stages are skipped. Make the check required in branch protection to enforce it.",
+  },
+};
+
+function ToggleField(props: {
   id: string;
   label: string;
   description: string;
@@ -55,12 +77,24 @@ function ToggleField({
 }) {
   return (
     <Field orientation="horizontal">
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
+      <Switch id={props.id} checked={props.checked} onCheckedChange={props.onChange} />
       <div className="flex flex-col gap-0.5">
-        <FieldLabel htmlFor={id}>{label}</FieldLabel>
-        <FieldDescription className="text-xs">{description}</FieldDescription>
+        <FieldLabel htmlFor={props.id}>{props.label}</FieldLabel>
+        <FieldDescription className="text-xs">{props.description}</FieldDescription>
       </div>
     </Field>
+  );
+}
+
+function Question({ number, title, children }: { number: number; title: string; children: React.ReactNode }) {
+  return (
+    <FieldSet className="gap-3">
+      <FieldLegend variant="label" className="flex items-center gap-2">
+        <span className="flex size-5 items-center justify-center rounded-full bg-muted text-xs">{number}</span>
+        {title}
+      </FieldLegend>
+      {children}
+    </FieldSet>
   );
 }
 
@@ -70,7 +104,7 @@ export function PipelineEditor({
   initialSteps,
 }: {
   repoId: number;
-  agents: AgentOption[];
+  agents: EditorAgent[];
   initialSteps: PipelineStepInput[];
 }) {
   const [steps, setSteps] = useState<EditorStep[]>(() => initialSteps.map(withKey));
@@ -106,8 +140,7 @@ export function PipelineEditor({
   };
 
   const save = () => {
-    const payload = steps.map(({ key: _key, ...step }) => step);
-    const parsed = pipelineInputSchema.safeParse(payload);
+    const parsed = pipelineInputSchema.safeParse(steps.map(({ key: _key, ...step }) => step));
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Check the pipeline settings");
       return;
@@ -127,8 +160,11 @@ export function PipelineEditor({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground text-sm">
-          Steps in the same stage run in parallel. Stages run in order, and a failing <strong>blocking</strong> step
-          stops later stages and fails its check.
+          Agents in the same stage run together; stages run one after another. More agents on the{" "}
+          <Link prefetch={false} href="/dashboard/agents" className="underline">
+            Agents page
+          </Link>
+          .
         </p>
         <div className="flex shrink-0 gap-2">
           <Button variant="outline" onClick={add} disabled={agents.length === 0}>
@@ -144,7 +180,7 @@ export function PipelineEditor({
       {steps.length === 0 ? (
         <Empty className="border border-dashed">
           <EmptyHeader>
-            <EmptyTitle>No agents in this pipeline</EmptyTitle>
+            <EmptyTitle>No agents on this repository</EmptyTitle>
             <EmptyDescription>Add an agent to run it on this repository&apos;s pull requests.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -160,9 +196,9 @@ export function PipelineEditor({
         <section key={stage} className="flex flex-col gap-3" aria-label={`Stage ${stage}`}>
           <div className="flex items-center gap-2">
             <Badge variant="outline">Stage {stage}</Badge>
-            <span className="text-muted-foreground text-xs">
-              {steps.filter((s) => s.stage === stage).length > 1 ? "These run together" : null}
-            </span>
+            {steps.filter((s) => s.stage === stage).length > 1 ? (
+              <span className="text-muted-foreground text-xs">These run together</span>
+            ) : null}
           </div>
           {steps
             .filter((s) => s.stage === stage)
@@ -170,16 +206,20 @@ export function PipelineEditor({
               const agent = agentById.get(step.agentId);
               const index = steps.findIndex((s) => s.key === step.key);
               const id = (name: string) => `${step.key}-${name}`;
+              const strictness = strictnessOf(step);
+              const basicSettings = agent?.settings.filter((f) => !f.advanced) ?? [];
+              const advancedSettings = agent?.settings.filter((f) => f.advanced) ?? [];
               return (
                 <Card key={step.key} className={step.enabled ? undefined : "opacity-70"}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       {agent?.name ?? "Unknown agent"}
-                      {step.blocking ? <Badge>Blocking</Badge> : null}
+                      {step.blocking ? <Badge>Blocks merging</Badge> : null}
                       {step.enabled ? null : <Badge variant="outline">Off</Badge>}
                     </CardTitle>
                     <CardDescription>
-                      Check name: <code>Agent PR / {agent?.name ?? "?"}</code>
+                      {agent?.tagline ? `${agent.tagline} · ` : ""}Shows as{" "}
+                      <code>{checkRunName(agent?.name ?? "?")}</code>
                     </CardDescription>
                     <CardAction className="flex gap-1">
                       <Button
@@ -200,7 +240,7 @@ export function PipelineEditor({
                       >
                         <ArrowDown />
                       </Button>
-                      <Button variant="ghost" size="icon-sm" aria-label="Remove step" onClick={() => remove(step.key)}>
+                      <Button variant="ghost" size="icon-sm" aria-label="Remove agent" onClick={() => remove(step.key)}>
                         <Trash2 />
                       </Button>
                     </CardAction>
@@ -214,7 +254,10 @@ export function PipelineEditor({
                           value={step.agentId}
                           onChange={(e) => {
                             const next = agentById.get(e.target.value);
-                            update(step.key, { agentId: e.target.value, config: { ...(next?.defaultConfig ?? {}) } });
+                            update(step.key, {
+                              agentId: e.target.value,
+                              config: next ? defaultSettings(next.settings) : {},
+                            });
                           }}
                         >
                           {agents.map((a) => (
@@ -237,80 +280,182 @@ export function PipelineEditor({
                           }
                         />
                       </Field>
-                      <Field>
-                        <FieldLabel htmlFor={id("branches")}>Target branches</FieldLabel>
-                        <Input
-                          id={id("branches")}
-                          placeholder="All branches"
-                          defaultValue={step.branches.join(", ")}
-                          onBlur={(e) => update(step.key, { branches: parseGlobList(e.target.value) })}
-                        />
-                      </Field>
-                    </FieldGroup>
-
-                    <FieldGroup className="grid gap-4 md:grid-cols-2">
-                      <Field>
-                        <FieldLabel htmlFor={id("include")}>Only these paths</FieldLabel>
-                        <Textarea
-                          id={id("include")}
-                          rows={3}
-                          placeholder={"src/**\napps/web/**"}
-                          defaultValue={step.includePaths.join("\n")}
-                          onBlur={(e) => update(step.key, { includePaths: parseGlobList(e.target.value) })}
-                        />
-                        <FieldDescription>Glob per line. Empty runs on every PR.</FieldDescription>
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor={id("exclude")}>Ignore these paths</FieldLabel>
-                        <Textarea
-                          id={id("exclude")}
-                          rows={3}
-                          placeholder={"**/*.md\ndocs/**"}
-                          defaultValue={step.excludePaths.join("\n")}
-                          onBlur={(e) => update(step.key, { excludePaths: parseGlobList(e.target.value) })}
-                        />
-                        <FieldDescription>Matching files are not scanned or counted.</FieldDescription>
-                      </Field>
-                    </FieldGroup>
-
-                    <FieldGroup className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                       <ToggleField
                         id={id("enabled")}
-                        label="Enabled"
-                        description="Run this step"
+                        label="On"
+                        description="Turn off to pause this agent here"
                         checked={step.enabled}
                         onChange={(enabled) => update(step.key, { enabled })}
                       />
-                      <ToggleField
-                        id={id("blocking")}
-                        label="Blocking"
-                        description="Fail the check and stop later stages"
-                        checked={step.blocking}
-                        onChange={(blocking) => update(step.key, { blocking })}
-                      />
-                      <ToggleField
-                        id={id("drafts")}
-                        label="Run on drafts"
-                        description="Include draft PRs"
-                        checked={step.runOnDrafts}
-                        onChange={(runOnDrafts) => update(step.key, { runOnDrafts })}
-                      />
-                      <ToggleField
-                        id={id("forks")}
-                        label="Run on forks"
-                        description="Read-only scan of fork PRs"
-                        checked={step.runOnForks}
-                        onChange={(runOnForks) => update(step.key, { runOnForks })}
-                      />
                     </FieldGroup>
 
-                    {agent?.slug === "fixmyslop" ? (
-                      <FixMySlopConfigFields
-                        idPrefix={step.key}
-                        config={step.config}
-                        onChange={(config) => update(step.key, { config })}
-                      />
+                    <div className="grid gap-6 lg:grid-cols-2">
+                      <Question number={1} title="When should it run?">
+                        <NativeSelect
+                          aria-label="When should it run?"
+                          value={step.trigger}
+                          onChange={(e) =>
+                            update(step.key, { trigger: e.target.value as PipelineStepInput["trigger"] })
+                          }
+                        >
+                          <NativeSelectOption value="every_push">On every push to the pull request</NativeSelectOption>
+                          <NativeSelectOption value="opened">Only when the pull request is opened</NativeSelectOption>
+                          <NativeSelectOption value="label">
+                            Only when a label is on the pull request
+                          </NativeSelectOption>
+                        </NativeSelect>
+                        {step.trigger === "label" ? (
+                          <Field>
+                            <FieldLabel htmlFor={id("label")}>Label</FieldLabel>
+                            <Input
+                              id={id("label")}
+                              placeholder="security-review"
+                              value={step.triggerLabel ?? ""}
+                              maxLength={50}
+                              onChange={(e) => update(step.key, { triggerLabel: e.target.value })}
+                            />
+                            <FieldDescription className="text-xs">
+                              Adding this label to a pull request starts the agent.
+                            </FieldDescription>
+                          </Field>
+                        ) : null}
+                      </Question>
+
+                      <Question number={2} title="Which files?">
+                        <Field>
+                          <FieldLabel htmlFor={id("include")}>Only these paths</FieldLabel>
+                          <Textarea
+                            id={id("include")}
+                            rows={2}
+                            placeholder={"src/**\napps/web/**"}
+                            defaultValue={step.includePaths.join("\n")}
+                            onBlur={(e) => update(step.key, { includePaths: parseGlobList(e.target.value) })}
+                          />
+                          <FieldDescription className="text-xs">Empty means every changed file.</FieldDescription>
+                        </Field>
+                        <Field>
+                          <FieldLabel htmlFor={id("exclude")}>Skip these paths</FieldLabel>
+                          <Textarea
+                            id={id("exclude")}
+                            rows={2}
+                            placeholder={"**/*.md\ndocs/**"}
+                            defaultValue={step.excludePaths.join("\n")}
+                            onBlur={(e) => update(step.key, { excludePaths: parseGlobList(e.target.value) })}
+                          />
+                        </Field>
+                      </Question>
+
+                      <Question number={3} title="How strict?">
+                        <NativeSelect
+                          aria-label="How strict?"
+                          value={strictness}
+                          onChange={(e) => {
+                            const value = e.target.value as Strictness;
+                            update(step.key, {
+                              blocking: value === "block",
+                              reviewMode: value === "request_changes" ? "request_changes" : "comment",
+                            });
+                          }}
+                        >
+                          {(Object.keys(STRICTNESS) as Strictness[]).map((value) => (
+                            <NativeSelectOption key={value} value={value}>
+                              {STRICTNESS[value].label}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                        <FieldDescription className="text-xs">{STRICTNESS[strictness].help}</FieldDescription>
+                      </Question>
+
+                      <Question number={4} title="How chatty?">
+                        <NativeSelect
+                          aria-label="How chatty?"
+                          value={step.commentStyle}
+                          onChange={(e) =>
+                            update(step.key, { commentStyle: e.target.value as PipelineStepInput["commentStyle"] })
+                          }
+                        >
+                          <NativeSelectOption value="inline">Comment on the lines it finds</NativeSelectOption>
+                          <NativeSelectOption value="summary">One summary comment only</NativeSelectOption>
+                        </NativeSelect>
+                        {step.commentStyle === "inline" ? (
+                          <Field>
+                            <FieldLabel htmlFor={id("max")}>At most this many line comments</FieldLabel>
+                            <Input
+                              id={id("max")}
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={step.maxComments}
+                              onChange={(e) =>
+                                update(step.key, {
+                                  maxComments: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
+                                })
+                              }
+                            />
+                          </Field>
+                        ) : null}
+                      </Question>
+                    </div>
+
+                    {basicSettings.length > 0 ? (
+                      <FieldSet>
+                        <FieldLegend variant="label">{agent?.name} settings</FieldLegend>
+                        <FieldGroup className="grid gap-4 md:grid-cols-2">
+                          <CardSettingsFields
+                            idPrefix={step.key}
+                            fields={basicSettings}
+                            values={step.config}
+                            onChange={(config) => update(step.key, { config })}
+                          />
+                        </FieldGroup>
+                      </FieldSet>
                     ) : null}
+
+                    <Collapsible>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm" className="-ml-2">
+                          <ChevronDown data-icon="inline-start" />
+                          Advanced
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="flex flex-col gap-4 pt-3">
+                        <FieldGroup className="grid gap-4 md:grid-cols-3">
+                          <Field>
+                            <FieldLabel htmlFor={id("branches")}>Only pull requests into</FieldLabel>
+                            <Input
+                              id={id("branches")}
+                              placeholder="Any branch"
+                              defaultValue={step.branches.join(", ")}
+                              onBlur={(e) => update(step.key, { branches: parseGlobList(e.target.value) })}
+                            />
+                          </Field>
+                          <ToggleField
+                            id={id("drafts")}
+                            label="Run on drafts"
+                            description="Include draft pull requests"
+                            checked={step.runOnDrafts}
+                            onChange={(runOnDrafts) => update(step.key, { runOnDrafts })}
+                          />
+                          <ToggleField
+                            id={id("forks")}
+                            label="Run on forks"
+                            description="Pull requests from forks, without any secrets"
+                            checked={step.runOnForks}
+                            onChange={(runOnForks) => update(step.key, { runOnForks })}
+                          />
+                        </FieldGroup>
+                        {advancedSettings.length > 0 ? (
+                          <FieldGroup className="grid gap-4 md:grid-cols-2">
+                            <CardSettingsFields
+                              idPrefix={step.key}
+                              fields={advancedSettings}
+                              values={step.config}
+                              onChange={(config) => update(step.key, { config })}
+                            />
+                          </FieldGroup>
+                        ) : null}
+                      </CollapsibleContent>
+                    </Collapsible>
                   </CardContent>
                 </Card>
               );

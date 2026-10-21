@@ -30,7 +30,7 @@ export function GitHubRepositoriesMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="icon" aria-label="Open Agent PR projects on GitHub">
+        <Button size="icon" aria-label="Open GitCrew projects on GitHub">
           <SimpleIcon icon={siGithub} className="fill-primary-foreground" />
         </Button>
       </DropdownMenuTrigger>

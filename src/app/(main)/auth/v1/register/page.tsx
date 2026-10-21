@@ -7,8 +7,8 @@ import { GitHubSignIn } from "../../_components/github-sign-in";
 import { RegisterForm } from "../../_components/register-form";
 
 export const metadata: Metadata = {
-  title: "Create an account · Agent PR",
-  description: "Create an Agent PR account to run AI agents on your pull requests.",
+  title: "Create an account · GitCrew",
+  description: "Create a GitCrew account to run AI agents on your pull requests.",
   alternates: {
     canonical: "/auth/v1/register",
   },
@@ -43,7 +43,7 @@ export default function RegisterV1() {
           <div className="space-y-6">
             <GitPullRequestArrow className="mx-auto size-12 text-primary-foreground" />
             <div className="space-y-2">
-              <h1 className="font-light text-5xl text-primary-foreground">Agent PR</h1>
+              <h1 className="font-light text-5xl text-primary-foreground">GitCrew</h1>
               <p className="text-primary-foreground/80 text-xl">AI agents on every pull request</p>
             </div>
           </div>

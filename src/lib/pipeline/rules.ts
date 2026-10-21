@@ -51,3 +51,28 @@ export function evaluateStep(rules: StepRules, pr: PullRequestFacts): RuleDecisi
   }
   return { run: true, files: matched.filter((file) => !file.removed).map((file) => file.path) };
 }
+
+export type TriggerRules = { trigger: "every_push" | "opened" | "label"; triggerLabel: string | null };
+export type TriggerFacts = { action: string; labels: string[]; addedLabel: string | null };
+
+const PUSH_ACTIONS = new Set(["opened", "synchronize", "reopened", "ready_for_review"]);
+const OPEN_ACTIONS = new Set(["opened", "reopened", "ready_for_review"]);
+
+/**
+ * Whether a pull request event should start this step at all ("When should it run?"). Steps that are not
+ * triggered are left out of the run instead of showing up as skipped.
+ */
+export function isTriggered(rules: TriggerRules, facts: TriggerFacts): boolean {
+  switch (rules.trigger) {
+    case "opened":
+      return OPEN_ACTIONS.has(facts.action);
+    case "label": {
+      const label = rules.triggerLabel?.trim().toLowerCase();
+      if (!label) return false;
+      if (facts.action === "labeled") return facts.addedLabel?.toLowerCase() === label;
+      return PUSH_ACTIONS.has(facts.action) && facts.labels.some((l) => l.toLowerCase() === label);
+    }
+    default:
+      return PUSH_ACTIONS.has(facts.action);
+  }
+}

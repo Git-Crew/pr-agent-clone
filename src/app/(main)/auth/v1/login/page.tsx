@@ -10,7 +10,7 @@ import { GitHubSignIn } from "../../_components/github-sign-in";
 import { LoginForm } from "../../_components/login-form";
 
 export const metadata: Metadata = {
-  title: "Sign in · Agent PR",
+  title: "Sign in · GitCrew",
   description: "Sign in to manage the AI agents that run on your pull requests.",
   alternates: {
     canonical: "/auth/v1/login",
@@ -29,7 +29,7 @@ export default async function LoginV1({ searchParams }: { searchParams: Promise<
           <div className="space-y-6">
             <GitPullRequestArrow className="mx-auto size-12 text-primary-foreground" />
             <div className="space-y-2">
-              <h1 className="font-light text-5xl text-primary-foreground">Agent PR</h1>
+              <h1 className="font-light text-5xl text-primary-foreground">GitCrew</h1>
               <p className="text-primary-foreground/80 text-xl">AI agents on every pull request</p>
             </div>
           </div>
@@ -41,7 +41,7 @@ export default async function LoginV1({ searchParams }: { searchParams: Promise<
           <div className="space-y-4 text-center">
             <h2 className="font-medium tracking-tight">Sign in</h2>
             <p className="mx-auto max-w-xl text-muted-foreground">
-              Use GitHub to see the repositories where Agent PR is installed.
+              Use GitHub to see the repositories where GitCrew is installed.
             </p>
           </div>
           <div className="space-y-4">

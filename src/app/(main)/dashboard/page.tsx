@@ -13,7 +13,7 @@ import { StatCards } from "./_components/overview/stat-cards";
 import { PageHeader } from "./_components/page-header";
 import { RunsTable } from "./_components/runs-table";
 
-export const metadata: Metadata = { title: "Overview · Agent PR" };
+export const metadata: Metadata = { title: "Overview · GitCrew" };
 
 export default async function Page() {
   const user = await requireUser();

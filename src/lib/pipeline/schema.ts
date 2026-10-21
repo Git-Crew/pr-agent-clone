@@ -12,18 +12,29 @@ export function parseGlobList(input: string): string[] {
 
 const globList = z.array(z.string().trim().min(1).max(200)).max(50);
 
-export const pipelineStepInputSchema = z.object({
-  agentId: z.uuid(),
-  stage: z.number().int().min(1).max(20),
-  enabled: z.boolean(),
-  blocking: z.boolean(),
-  includePaths: globList,
-  excludePaths: globList,
-  branches: globList,
-  runOnDrafts: z.boolean(),
-  runOnForks: z.boolean(),
-  config: z.record(z.string(), z.unknown()),
-});
+export const pipelineStepInputSchema = z
+  .object({
+    agentId: z.uuid(),
+    stage: z.number().int().min(1).max(20),
+    enabled: z.boolean(),
+    blocking: z.boolean(),
+    includePaths: globList,
+    excludePaths: globList,
+    branches: globList,
+    runOnDrafts: z.boolean(),
+    runOnForks: z.boolean(),
+    // The plain questions: when it runs, how strict it is, how chatty it is.
+    trigger: z.enum(["every_push", "opened", "label"]),
+    triggerLabel: z.string().trim().max(50).nullable(),
+    reviewMode: z.enum(["comment", "request_changes"]),
+    commentStyle: z.enum(["inline", "summary"]),
+    maxComments: z.number().int().min(0).max(100),
+    config: z.record(z.string(), z.unknown()),
+  })
+  .refine((step) => step.trigger !== "label" || Boolean(step.triggerLabel), {
+    message: "Name the label that should start this agent",
+    path: ["triggerLabel"],
+  });
 
 export const pipelineInputSchema = z.array(pipelineStepInputSchema).max(20);
 

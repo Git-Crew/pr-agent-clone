@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/db/dashboard";
 import { canManageGitHubApp, getAppUrl } from "@/lib/env";
-import { APP_EVENTS, APP_PERMISSIONS } from "@/lib/github/manifest";
+import { APP_EVENTS, APP_PERMISSIONS, isLocalUrl } from "@/lib/github/manifest";
 import { getGitHubAppConfig } from "@/lib/server/deps";
 
 import { PageHeader } from "../_components/page-header";
@@ -35,7 +35,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const appUrl = getAppUrl();
   const isAdmin = canManageGitHubApp(user);
   const error = params.error ? (ERRORS[params.error] ?? "Something went wrong.") : null;
-  const reachable = !/^https?:\/\/(localhost|127\.0\.0\.1)/.test(appUrl);
+  const local = isLocalUrl(appUrl);
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -53,7 +53,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       {params.created ? (
         <Alert>
           <AlertTitle>The GitHub App is ready</AlertTitle>
-          <AlertDescription>Now install it on the repositories agents should run on.</AlertDescription>
+          <AlertDescription>
+            <p>
+              Next: install it on the repositories agents should run on. You will be signed in with GitHub on the way
+              back.
+            </p>
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -96,15 +101,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            {reachable ? null : (
+            {local ? (
               <Alert>
-                <AlertTitle>This deployment runs on localhost</AlertTitle>
+                <AlertTitle>Local mode</AlertTitle>
                 <AlertDescription>
-                  GitHub cannot deliver webhooks to localhost, and the runner cannot reach it. Deploy (or set APP_URL to
-                  a public tunnel URL) before creating the App.
+                  <p>
+                    You are on localhost, so the App is created as a private test App without a webhook. Sign in with
+                    GitHub and installing on repositories work right away. Agents only run on pull requests once this is
+                    deployed to a public URL; then create a new App there.
+                  </p>
                 </AlertDescription>
               </Alert>
-            )}
+            ) : null}
             {isAdmin ? (
               <CreateAppForm defaultName={defaultAppName(appUrl)} />
             ) : (

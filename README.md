@@ -135,7 +135,3 @@ docs/ARCHITECTURE.md        the design
 Secrets are encrypted at rest (AES-256-GCM) and are write-only in the UI. Webhooks are HMAC-verified and deduplicated.
 Runner calls are authenticated with GitHub OIDC. Only `.env.example` is in git. See
 [docs/ARCHITECTURE.md § Security checklist](docs/ARCHITECTURE.md#7-security-checklist).
-
-## License
-
-MIT. See [LICENSE](LICENSE).

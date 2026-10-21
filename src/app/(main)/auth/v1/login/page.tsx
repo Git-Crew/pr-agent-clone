@@ -5,9 +5,9 @@ import type { Metadata } from "next";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-import { AuthDivider, authErrorMessage } from "../../_components/auth-divider";
+import { authErrorMessage } from "../../_components/auth-divider";
+import { GitHubSignIn } from "../../_components/github-sign-in";
 import { LoginForm } from "../../_components/login-form";
-import { GitHubButton } from "../../_components/social-auth/github-button";
 
 export const metadata: Metadata = {
   title: "Sign in · Agent PR",
@@ -18,7 +18,9 @@ export const metadata: Metadata = {
 };
 
 export default async function LoginV1({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const error = authErrorMessage((await searchParams).error);
+  const code = (await searchParams).error;
+  // The first-time setup note already explains a missing GitHub App.
+  const error = code === "github_not_configured" ? null : authErrorMessage(code);
 
   return (
     <div className="flex h-dvh">
@@ -48,8 +50,7 @@ export default async function LoginV1({ searchParams }: { searchParams: Promise<
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             ) : null}
-            <GitHubButton className="w-full" variant="default" />
-            <AuthDivider label="Or with email" />
+            <GitHubSignIn mode="login" />
             <LoginForm />
             <p className="text-center text-muted-foreground text-xs">
               Don&apos;t have an account?{" "}

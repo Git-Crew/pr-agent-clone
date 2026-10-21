@@ -23,6 +23,13 @@ import {
   type User,
   users,
 } from "@/lib/db/schema";
+import { getGitHubAppConfig } from "@/lib/server/deps";
+
+/** Until the GitHub App exists, send people straight to its one-click setup. */
+async function afterAuthPath() {
+  const config = await getGitHubAppConfig().catch(() => null);
+  return config ? "/dashboard" : "/dashboard/setup";
+}
 
 async function logActivity(teamId: number | null | undefined, userId: number, type: ActivityType, ipAddress?: string) {
   if (teamId === null || teamId === undefined) {
@@ -70,7 +77,7 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
 
   await Promise.all([setSession(foundUser), logActivity(foundTeam?.id, foundUser.id, ActivityType.SIGN_IN)]);
 
-  redirect("/dashboard");
+  redirect(await afterAuthPath());
 });
 
 const signUpSchema = z.object({
@@ -158,7 +165,7 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     setSession(createdUser),
   ]);
 
-  redirect("/dashboard");
+  redirect(await afterAuthPath());
 });
 
 export async function signOut() {

@@ -13,21 +13,30 @@ export const APP_PERMISSIONS = {
 
 export const APP_EVENTS = ["pull_request"] as const;
 
+/** GitHub only delivers webhooks to public URLs and rejects localhost when the App is created. */
+export function isLocalUrl(appUrl: string): boolean {
+  const host = new URL(appUrl).hostname;
+  return host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host.endsWith(".localhost");
+}
+
 export function buildAppManifest(appUrl: string, name: string) {
   const base = appUrl.replace(/\/+$/, "");
+  const local = isLocalUrl(base);
   return {
     name,
     url: base,
     description: "AI agents on your pull requests: reviews, inline comments and merge checks.",
-    hook_attributes: { url: `${base}/api/github/webhook`, active: true },
+    // Local mode: no webhook, so sign-in and installs work on localhost. PR runs need a public URL.
+    ...(local ? {} : { hook_attributes: { url: `${base}/api/github/webhook`, active: true } }),
     redirect_url: `${base}/api/auth/github/app-created`,
     callback_urls: [`${base}/api/auth/github/callback`],
     setup_url: `${base}/api/auth/github/callback`,
     setup_on_update: true,
     request_oauth_on_install: true,
-    public: true,
+    // A local test App stays private to its owner.
+    public: !local,
     default_permissions: APP_PERMISSIONS,
-    default_events: APP_EVENTS,
+    ...(local ? {} : { default_events: APP_EVENTS }),
   };
 }
 

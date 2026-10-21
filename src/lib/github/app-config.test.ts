@@ -5,7 +5,13 @@ import { canManageGitHubApp, getAppUrl, readGitHubAppEnv } from "@/lib/env";
 import { createTestDb } from "@/lib/test/db";
 
 import { loadGitHubAppConfig, saveGitHubAppFromManifest } from "./app-config";
-import { buildAppManifest, convertManifestCode, type ManifestConversion, manifestFormAction } from "./manifest";
+import {
+  buildAppManifest,
+  convertManifestCode,
+  isLocalUrl,
+  type ManifestConversion,
+  manifestFormAction,
+} from "./manifest";
 import { randomBytes } from "node:crypto";
 
 const key = randomBytes(32).toString("base64");
@@ -49,6 +55,19 @@ describe("App manifest", () => {
       metadata: "read",
       pull_requests: "write",
     });
+  });
+
+  it("creates a private App without a webhook on localhost", () => {
+    const manifest = buildAppManifest("http://localhost:3000", "Agent PR local");
+    expect(manifest).not.toHaveProperty("hook_attributes");
+    expect(manifest).not.toHaveProperty("default_events");
+    expect(manifest).toMatchObject({
+      public: false,
+      callback_urls: ["http://localhost:3000/api/auth/github/callback"],
+      redirect_url: "http://localhost:3000/api/auth/github/app-created",
+    });
+    expect(isLocalUrl("http://127.0.0.1:3000")).toBe(true);
+    expect(isLocalUrl("https://pr-agent.vercel.app")).toBe(false);
   });
 
   it("posts to the personal or organization registration page with state", () => {

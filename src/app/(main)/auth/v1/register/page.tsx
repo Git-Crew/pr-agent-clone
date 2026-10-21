@@ -3,9 +3,8 @@ import Link from "next/link";
 import { GitPullRequestArrow } from "lucide-react";
 import type { Metadata } from "next";
 
-import { AuthDivider } from "../../_components/auth-divider";
+import { GitHubSignIn } from "../../_components/github-sign-in";
 import { RegisterForm } from "../../_components/register-form";
-import { GitHubButton } from "../../_components/social-auth/github-button";
 
 export const metadata: Metadata = {
   title: "Create an account · Agent PR",
@@ -27,8 +26,7 @@ export default function RegisterV1() {
             </p>
           </div>
           <div className="space-y-4">
-            <GitHubButton className="w-full" variant="default" />
-            <AuthDivider label="Or with email" />
+            <GitHubSignIn mode="register" />
             <RegisterForm />
             <p className="text-center text-muted-foreground text-xs">
               Already have an account?{" "}

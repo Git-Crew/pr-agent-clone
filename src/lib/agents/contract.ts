@@ -21,7 +21,14 @@ export const agentResultSchema = z.object({
   summary: z.string().max(60_000),
   comments: z.array(agentCommentSchema).max(500).default([]),
   metrics: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
-  patch: z.object({ diff: z.string(), message: z.string() }).optional(),
+  patch: z.object({ diff: z.string().max(200_000), message: z.string().max(200) }).optional(),
+  writes: z
+    .array(z.object({ path: z.string().min(1).max(500), content: z.string().max(100_000) }))
+    .max(20)
+    .optional(),
+  labels: z.array(z.string().min(1).max(50)).max(10).optional(),
+  rebase: z.boolean().optional(),
+  rerunCi: z.boolean().optional(),
 });
 
 export type AgentComment = z.infer<typeof agentCommentSchema>;

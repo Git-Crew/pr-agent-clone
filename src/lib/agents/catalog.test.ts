@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PROVIDERS } from "@/lib/harness/models";
+import { PROVIDERS } from "@/lib/models";
 
 import { fromSarif, toAgentResult } from "./adapters";
 import { defaultSettings, parseSettings } from "./card";

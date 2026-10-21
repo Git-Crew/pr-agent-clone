@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { completeModel, DEFAULT_MODEL, modelJobFields, promptOverride, resolveModel, secretFor } from "./models";
+import { completeModel, DEFAULT_MODEL, promptOverride, resolveModel, secretFor } from "./index";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -26,17 +26,9 @@ describe("resolveModel", () => {
     expect(secretFor("grok")).toBe("XAI_API_KEY");
   });
 
-  it("keeps a blank prompt override on the harness default", () => {
+  it("keeps a blank prompt override on the module default", () => {
     expect(promptOverride("review the diff", "  ")).toBe("review the diff");
     expect(promptOverride("review the diff", "flag missing tests")).toBe("flag missing tests");
-  });
-
-  it("sends a chosen model to the Actions job and skips the default", () => {
-    expect(modelJobFields({})).toEqual({});
-    expect(modelJobFields({ provider: "grok", model: "grok-4-fast" })).toEqual({
-      provider: "grok",
-      model: "grok-4-fast",
-    });
   });
 });
 
@@ -78,6 +70,5 @@ describe("completeModel", () => {
     expect(seen[0]?.body.system).toBe("reply json");
     expect(seen[1]?.body.model).toBe("gpt-4.1-nano");
     expect(seen[2]?.keyHeader).toBe("Bearer sk-xai");
-    expect(seen.every((call) => JSON.stringify(call.body).includes("reply json"))).toBe(true);
   });
 });

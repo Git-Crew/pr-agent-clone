@@ -117,6 +117,21 @@ export interface GitHubClient {
   dispatchWorkflow(fullName: string, workflowFile: string, ref: string, inputs: Record<string, string>): Promise<void>;
   workflowExists(fullName: string, workflowFile: string): Promise<boolean>;
   listRepositories(): Promise<InstallationRepository[]>;
+  contentsToken(): Promise<string>;
+  addLabels(fullName: string, issueNumber: number, labels: string[]): Promise<void>;
+  updatePullBranch(fullName: string, prNumber: number): Promise<void>;
+  rerunWorkflows(fullName: string, headSha: string): Promise<number>;
+  createDraftPull(
+    fullName: string,
+    input: {
+      title: string;
+      body: string;
+      head: string;
+      base: string;
+      headSha: string;
+      writes: { path: string; content: string }[];
+    },
+  ): Promise<{ number: number }>;
 }
 
 const MAX_PR_FILES_PAGES = 30; // GitHub returns at most 3000 files (30 × 100)
@@ -186,6 +201,75 @@ export class InstallationClient implements GitHubClient {
       if (res.repositories.length < 100 || repos.length >= res.total_count) break;
     }
     return repos;
+  }
+
+  async contentsToken() {
+    return this.getToken();
+  }
+
+  async addLabels(fullName: string, issueNumber: number, labels: string[]) {
+    await this.call("POST", `/repos/${fullName}/issues/${issueNumber}/labels`, { labels });
+  }
+
+  async updatePullBranch(fullName: string, prNumber: number) {
+    await this.call("PUT", `/repos/${fullName}/pulls/${prNumber}/update-branch`, {});
+  }
+
+  async rerunWorkflows(fullName: string, headSha: string) {
+    const res = await this.call<{ workflow_runs?: { id: number }[] }>(
+      "GET",
+      `/repos/${fullName}/actions/runs?head_sha=${encodeURIComponent(headSha)}&per_page=20`,
+    );
+    for (const run of res.workflow_runs ?? []) {
+      await this.call("POST", `/repos/${fullName}/actions/runs/${run.id}/rerun`);
+    }
+    return res.workflow_runs?.length ?? 0;
+  }
+
+  async createDraftPull(
+    fullName: string,
+    input: {
+      title: string;
+      body: string;
+      head: string;
+      base: string;
+      headSha: string;
+      writes: { path: string; content: string }[];
+    },
+  ) {
+    const ref = `refs/heads/${input.head}`;
+    try {
+      await this.call("POST", `/repos/${fullName}/git/refs`, { ref, sha: input.headSha });
+    } catch (error) {
+      if (!(error instanceof GitHubApiError && error.status === 422)) throw error;
+    }
+    for (const write of input.writes) {
+      const encoded = write.path.split("/").map(encodeURIComponent).join("/");
+      let sha: string | undefined;
+      try {
+        const existing = await this.call<{ sha: string }>(
+          "GET",
+          `/repos/${fullName}/contents/${encoded}?ref=${encodeURIComponent(input.head)}`,
+        );
+        sha = existing.sha;
+      } catch (error) {
+        if (!(error instanceof GitHubApiError && error.status === 404)) throw error;
+      }
+      await this.call("PUT", `/repos/${fullName}/contents/${encoded}`, {
+        message: input.title,
+        content: Buffer.from(write.content).toString("base64"),
+        branch: input.head,
+        ...(sha ? { sha } : {}),
+      });
+    }
+    const pull = await this.call<{ number: number }>("POST", `/repos/${fullName}/pulls`, {
+      title: input.title,
+      head: input.head,
+      base: input.base,
+      body: input.body,
+      draft: true,
+    });
+    return { number: pull.number };
   }
 }
 

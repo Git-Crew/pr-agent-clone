@@ -37,5 +37,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Per-run scratch and per-repo loop memory. Not source.
+.gitcrew/
+
 .vercel
 .env*

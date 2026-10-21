@@ -1,7 +1,12 @@
-import type { ModelReply } from "./kodus";
-
-// The model is a setting on the step. The harness and the system prompt are not.
+// The model is a setting on the step. The loop and the system prompt are not.
 // Any model id the provider accepts can be typed in. These three are the defaults.
+
+export type ModelReply = {
+  text: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  model?: string;
+};
 
 export const PROVIDERS = ["anthropic", "openai", "grok"] as const;
 export type ModelProvider = (typeof PROVIDERS)[number];
@@ -41,19 +46,15 @@ export function secretFor(provider: ModelProvider): string {
   return SECRET_NAME[provider];
 }
 
-/** Set on the step, or the harness default when the field is blank. */
+/** Set on the step, or the module default when the field is blank. */
 export function promptOverride(fallback: string, value: unknown): string {
   const custom = typeof value === "string" ? value.trim() : "";
   return custom || fallback;
 }
 
-/** Provider and model for an Actions job, only when the step actually chose one. */
-export function modelJobFields(config: Record<string, unknown>): Record<string, string> {
-  const pickedProvider = typeof config.provider === "string" && config.provider.trim();
-  const pickedModel = typeof config.model === "string" && config.model.trim();
-  if (!pickedProvider && !pickedModel) return {};
-  const spec = resolveModel(config);
-  return { provider: spec.provider, model: spec.model };
+/** Grok's APIs are registered as xAI inside Hermes and OpenClaw. */
+export function loopProvider(provider: ModelProvider): string {
+  return provider === "grok" ? "xai" : provider;
 }
 
 type ChatBody = {
@@ -103,10 +104,11 @@ async function completeAnthropic(
 }
 
 async function completeChat(
-  spec: ModelSpec & { provider: Exclude<ModelProvider, "anthropic"> },
+  spec: ModelSpec,
   apiKey: string,
   prompt: { system: string; user: string },
 ): Promise<ModelReply> {
+  if (spec.provider === "anthropic") throw new Error("Claude uses the messages API");
   const response = await fetch(CHAT_URL[spec.provider], {
     method: "POST",
     headers: {

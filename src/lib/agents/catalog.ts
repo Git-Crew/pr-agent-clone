@@ -47,6 +47,41 @@ const MODEL_SETTINGS: SettingField[] = [
   },
 ];
 
+const ACTION_SETTINGS: SettingField[] = [
+  {
+    key: "allowLabel",
+    label: "Let this step add labels",
+    help: "Off until you turn it on. The agent asks. GitCrew applies the labels. A fork cannot turn this on.",
+    type: "boolean",
+    default: false,
+    advanced: true,
+  },
+  {
+    key: "allowDraftPr",
+    label: "Let this step open a draft pull request",
+    help: "Off until you turn it on. GitCrew opens the draft from files the sandbox changed. A fork cannot turn this on.",
+    type: "boolean",
+    default: false,
+    advanced: true,
+  },
+  {
+    key: "allowRebase",
+    label: "Let this step update the branch",
+    help: "Off until you turn it on. GitCrew asks GitHub to update the pull request branch. A fork cannot turn this on.",
+    type: "boolean",
+    default: false,
+    advanced: true,
+  },
+  {
+    key: "allowRerunCi",
+    label: "Let this step re-run CI",
+    help: "Off until you turn it on. GitCrew re-runs workflows for this commit. A fork cannot turn this on.",
+    type: "boolean",
+    default: false,
+    advanced: true,
+  },
+];
+
 const MODEL_SECRETS = [
   { name: "ANTHROPIC_API_KEY", label: "Claude API key" },
   { name: "OPENAI_API_KEY", label: "OpenAI API key" },
@@ -109,7 +144,7 @@ export const CATALOG: AgentCard[] = [
     description:
       "Write instructions like “check that every API route validates its input”. An LLM of your choice reads the diff and comments where it matters.",
     by: "GitCrew",
-    status: "coming_soon",
+    status: "available",
     runtime: "prompt",
     settings: MODEL_SETTINGS,
     secrets: MODEL_SECRETS,
@@ -131,25 +166,26 @@ export const CATALOG: AgentCard[] = [
     name: "Hermes",
     tagline: "Nous Research's agent, on your pull requests",
     description:
-      "Run the Hermes agent by Nous Research as a reviewer. We are checking how it runs best before adding it.",
+      "Runs the Hermes agent by Nous Research in its own sandbox and comments on the pull request. Memory for that repository stays on the worker.",
     by: "Nous Research",
     docsUrl: "https://github.com/NousResearch/hermes-agent",
-    status: "coming_soon",
+    status: "available",
     runtime: "command",
-    settings: MODEL_SETTINGS,
-    secrets: [],
+    settings: [...MODEL_SETTINGS, ...ACTION_SETTINGS],
+    secrets: MODEL_SECRETS,
   },
   {
     slug: "openclaw",
     name: "OpenClaw",
     tagline: "The open-source assistant, as a reviewer",
-    description: "Run OpenClaw on your pull requests. We are checking how it runs best before adding it.",
+    description:
+      "Runs OpenClaw in its own sandbox and comments on the pull request. Its state for that repository stays on the worker.",
     by: "OpenClaw",
     docsUrl: "https://github.com/openclaw/openclaw",
-    status: "coming_soon",
+    status: "available",
     runtime: "command",
-    settings: MODEL_SETTINGS,
-    secrets: [],
+    settings: [...MODEL_SETTINGS, ...ACTION_SETTINGS],
+    secrets: MODEL_SECRETS,
   },
 ];
 

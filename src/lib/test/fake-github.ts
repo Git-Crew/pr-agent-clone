@@ -53,6 +53,21 @@ export class FakeGitHub implements GitHubClient {
   async listRepositories() {
     return [REPO];
   }
+  async contentsToken() {
+    return "ghs_test";
+  }
+  async addLabels() {
+    // Recorded by tests that care. The default fake ignores the call.
+  }
+  async updatePullBranch() {
+    // Recorded by tests that care. The default fake ignores the call.
+  }
+  async rerunWorkflows() {
+    return 0;
+  }
+  async createDraftPull() {
+    return { number: 9 };
+  }
   checkByName(name: string) {
     return [...this.checkRuns.values()].filter((c) => c.name === name);
   }

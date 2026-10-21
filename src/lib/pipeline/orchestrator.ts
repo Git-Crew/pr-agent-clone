@@ -1,9 +1,11 @@
 import { and, asc, eq, inArray, isNull, notInArray } from "drizzle-orm";
 
+import { actionPowers, performActions } from "@/lib/agents/actions";
 import { toAgentResult } from "@/lib/agents/adapters";
 import { type AgentRequest, type AgentResult, agentResultSchema } from "@/lib/agents/contract";
 import { buildDiffIndex } from "@/lib/agents/diff";
 import { callHttpAgent } from "@/lib/agents/http";
+import { instructionsFor, moduleForSlug, placeForSlug } from "@/lib/agents/modules";
 import { BUILTIN_AGENTS, getBuiltinAgent, resolveAgentConfig } from "@/lib/agents/registry";
 import { buildReview } from "@/lib/agents/review";
 import { decryptSecret } from "@/lib/crypto/secrets";
@@ -26,12 +28,11 @@ import type { Db } from "@/lib/db/types";
 import type { CheckRunConclusion, GitHubClient, InstallationInfo, InstallationRepository } from "@/lib/github/client";
 import { GitHubApiError } from "@/lib/github/client";
 import type { ActionsClaims } from "@/lib/github/oidc";
-import { verifyWebhookSignature } from "@/lib/github/webhook";
-import { actionSpec, getBinding, jobFields, placeForSlug } from "@/lib/harness/agents";
-import { runKodusHarness } from "@/lib/harness/kodus";
-import { completeModel, promptOverride, resolveModel, secretFor } from "@/lib/harness/models";
+import { signBody, verifyWebhookSignature } from "@/lib/github/webhook";
+import { completeModel, loopProvider, promptOverride, resolveModel, secretFor } from "@/lib/models";
 import { noteFromFinish } from "@/lib/observe/phase";
 import { rememberPhase } from "@/lib/observe/remember";
+import { type PreparedSpace, prepareSpace, recordDiff } from "@/lib/space/prepare";
 
 import { checkRunName } from "./naming";
 import { evaluateStep, isTriggered } from "./rules";
@@ -390,10 +391,10 @@ async function installationSecret(db: Db, installationId: number, repositoryId: 
   return row ? decryptSecret(row.value) : null;
 }
 
-async function runProcessStep(deps: OrchestratorDeps, run: Run, repo: Repository, step: RunStep) {
-  const binding = getBinding(step.agentSlug);
-  if (!binding) {
-    await completeStepWithError(deps, step, "This agent has no review harness.");
+async function runProcessStep(deps: OrchestratorDeps, run: Run, repo: Repository, step: RunStep, space: PreparedSpace) {
+  const mod = moduleForSlug(step.agentSlug);
+  if (!mod?.run) {
+    await completeStepWithError(deps, step, "This agent has no review loop.");
     return;
   }
   try {
@@ -404,11 +405,17 @@ async function runProcessStep(deps: OrchestratorDeps, run: Run, repo: Repository
       return;
     }
     const request = await buildAgentRequest(deps, run, repo, step);
+    if (space.checkoutDir) await recordDiff(space.checkoutDir, request.changedFiles);
     const system = typeof step.config.system === "string" ? step.config.system.trim() : "";
-    const result = await runKodusHarness({
-      instructions: promptOverride(binding.instructions, step.config.instructions),
+    const result = await mod.run({
+      instructions: promptOverride(instructionsFor(step.agentSlug), step.config.instructions),
       system: system || undefined,
       files: request.changedFiles,
+      model: spec,
+      apiKey,
+      isFork: run.isFork,
+      checkoutDir: space.checkoutDir,
+      memoryDir: space.memoryDir(mod.id),
       complete: (prompt) => completeModel(spec, apiKey, prompt),
     });
     await completeStepWithResult(deps, run, repo, step, result);
@@ -449,9 +456,10 @@ export async function dispatchNextStage(deps: OrchestratorDeps, runId: string): 
     .set({ status: "running", currentStage: stage, startedAt: ctx.run.startedAt ?? new Date() })
     .where(eq(runs.id, runId));
 
-  // The kodus harness runs here, on the diff. Hermes, OpenClaw, and FixMySlop share one Actions job.
+  // FixMySlop uses the Actions checkout. Prompt loops run here. Hermes and OpenClaw run on the worker.
   const actionsSteps = claimed.filter((step) => placeForStep(step) === "actions");
   const processSteps = claimed.filter((step) => placeForStep(step) === "process");
+  const workerSteps = claimed.filter((step) => placeForStep(step) === "worker");
   const httpSteps = claimed.filter((step) => placeForStep(step) === "http");
 
   if (actionsSteps.length > 0) {
@@ -479,10 +487,25 @@ export async function dispatchNextStage(deps: OrchestratorDeps, runId: string): 
     }
   }
 
-  await Promise.all([
-    ...processSteps.map((step) => runProcessStep(deps, ctx.run, ctx.repo, step)),
-    ...httpSteps.map((step) => runHttpStep(deps, ctx.run, ctx.repo, step)),
-  ]);
+  const space = await prepareSpace({
+    modules: processSteps.flatMap((step) => {
+      const mod = moduleForSlug(step.agentSlug);
+      return mod ? [mod] : [];
+    }),
+    runId,
+    installationId: ctx.repo.installationId,
+    repositoryId: ctx.repo.id,
+    isFork: ctx.run.isFork,
+  });
+  try {
+    await Promise.all([
+      ...processSteps.map((step) => runProcessStep(deps, ctx.run, ctx.repo, step, space)),
+      ...workerSteps.map((step) => runWorkerStep(deps, ctx.run, ctx.repo, step)),
+      ...httpSteps.map((step) => runHttpStep(deps, ctx.run, ctx.repo, step)),
+    ]);
+  } finally {
+    await space.close();
+  }
   await advanceRun(deps, runId);
 }
 
@@ -596,6 +619,97 @@ export async function submitAgentCallback(
   }
   await advanceRun(deps, row.step.runId);
   return { conclusion };
+}
+
+/** The worker posts an AgentResult here, signed with GITCREW_WORKER_SECRET. */
+export async function submitWorkerResult(
+  deps: OrchestratorDeps,
+  stepId: string,
+  rawBody: string,
+  signature: string | null,
+): Promise<{ conclusion: Conclusion }> {
+  const secret = process.env.GITCREW_WORKER_SECRET;
+  if (!secret || !verifyWebhookSignature(secret, rawBody, signature)) {
+    throw new RunnerRequestError(401, "Invalid signature");
+  }
+  const { db } = deps;
+  const [step] = await db.select().from(runSteps).where(eq(runSteps.id, stepId)).limit(1);
+  if (!step || placeForStep(step) !== "worker") throw new RunnerRequestError(404, "Unknown step");
+  if (step.status !== "running" && step.status !== "queued") {
+    throw new RunnerRequestError(409, `Step is already ${step.status}`);
+  }
+  const ctx = await loadRunContext(db, step.runId);
+  if (!ctx) throw new RunnerRequestError(404, "Unknown run");
+
+  let conclusion: Conclusion;
+  try {
+    conclusion = await completeStepWithResult(
+      deps,
+      ctx.run,
+      ctx.repo,
+      step,
+      agentResultSchema.parse(JSON.parse(rawBody)),
+    );
+  } catch (error) {
+    if (error instanceof RunnerRequestError) throw error;
+    conclusion = await completeStepWithError(deps, step, `Could not read the worker result: ${errorMessage(error)}`);
+  }
+  await advanceRun(deps, step.runId);
+  return { conclusion };
+}
+
+async function runWorkerStep(deps: OrchestratorDeps, run: Run, repo: Repository, step: RunStep): Promise<void> {
+  const workerUrl = process.env.GITCREW_WORKER_URL?.replace(/\/$/, "");
+  const secret = process.env.GITCREW_WORKER_SECRET;
+  if (!workerUrl || !secret) {
+    await completeStepWithError(
+      deps,
+      step,
+      "Set GITCREW_WORKER_URL and GITCREW_WORKER_SECRET. Hermes and OpenClaw run on the worker, not in this app.",
+    );
+    return;
+  }
+  const mod = moduleForSlug(step.agentSlug);
+  if (!mod) {
+    await completeStepWithError(deps, step, "This agent has no review loop.");
+    return;
+  }
+  const spec = resolveModel(step.config);
+  const apiKey = await installationSecret(deps.db, repo.installationId, repo.id, secretFor(spec.provider));
+  if (!apiKey) {
+    await completeStepWithError(deps, step, `Add a ${secretFor(spec.provider)} secret for this installation.`);
+    return;
+  }
+  await deps.db.update(runSteps).set({ status: "running", startedAt: new Date() }).where(eq(runSteps.id, step.id));
+  await safeUpdateCheckRun(deps, repo, step, { status: "in_progress", started_at: new Date().toISOString() });
+  try {
+    const request = await buildAgentRequest(deps, run, repo, step);
+    const powers = actionPowers(step.config, run.isFork);
+    const body = JSON.stringify({
+      moduleId: mod.id,
+      installationId: repo.installationId,
+      instructions: promptOverride(instructionsFor(step.agentSlug), step.config.instructions),
+      system: typeof step.config.system === "string" ? step.config.system.trim() : "",
+      model: { provider: loopProvider(spec.provider), model: spec.model },
+      apiKey,
+      cloneToken: run.isFork ? null : await deps.github(repo.installationId).contentsToken(),
+      memory: mod.memory,
+      collectWrites: powers.draftPr,
+      request: { ...request, callbackUrl: `${deps.appUrl}/api/workers/steps/${step.id}/result` },
+    });
+    const response = await fetch(`${workerUrl}/v1/jobs`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-gitcrew-signature": signBody(secret, body) },
+      body,
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (response.status !== 202) {
+      throw new Error(`The worker answered ${response.status}`);
+    }
+    await log(deps.db, run.id, `${step.agentName}: accepted by the worker`, "info", step.id);
+  } catch (error) {
+    await completeStepWithError(deps, step, `Could not reach the worker: ${errorMessage(error)}`);
+  }
 }
 
 /** Called after any step finishes. Moves to the next stage, stops on a blocking failure, or finalizes. */
@@ -716,11 +830,7 @@ export async function getStageJob(
       agent: step.agentSlug,
       config: step.config,
       files: step.targetFiles,
-      spec: {
-        ...getBuiltinAgent(step.agentSlug)?.runnerSpec,
-        ...actionSpec(step.agentSlug),
-        ...jobFields(step.agentSlug, step.config),
-      },
+      spec: { ...getBuiltinAgent(step.agentSlug)?.runnerSpec },
     })),
   };
 }
@@ -919,6 +1029,27 @@ async function completeStepWithResult(
     completed_at: new Date().toISOString(),
     output: { title: result.title, summary: `${result.summary}${blockingNote}`.slice(0, MAX_CHECK_SUMMARY) },
   });
+
+  try {
+    await performActions(github, {
+      fullName: repo.fullName,
+      prNumber: run.prNumber,
+      baseRef: run.baseRef,
+      headSha: run.headSha,
+      stepId: step.id,
+      isFork: run.isFork,
+      config: step.config,
+      result,
+    });
+  } catch (error) {
+    await log(
+      db,
+      run.id,
+      `${step.agentName}: could not apply the allowed GitHub actions: ${errorMessage(error)}`,
+      "warn",
+      step.id,
+    );
+  }
 
   await db
     .update(runSteps)

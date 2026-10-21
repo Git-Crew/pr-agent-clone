@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { acceptReviewResult } from "@/lib/harness/agents";
+import { acceptReviewResult } from "@/lib/agents/modules/prompt";
 
 import type { AgentResult } from "./contract";
 import { FIXMYSLOP_VERSION, finalizeFixMySlop, fixMySlopConfigSchema } from "./fixmyslop";
@@ -62,14 +62,14 @@ export const BUILTIN_AGENTS: BuiltinAgent[] = [
   reviewAgent(
     "hermes",
     "Hermes",
-    "Runs the Hermes harness in the repository's Actions job, in the checkout shared with the other agents.",
-    "runner",
+    "Runs Hermes's own agent loop on this server. Scratch files last for one run. Its memory lasts for the repository.",
+    "server",
   ),
   reviewAgent(
     "openclaw",
     "OpenClaw",
-    "Runs the OpenClaw harness in the repository's Actions job, in the checkout shared with the other agents.",
-    "runner",
+    "Runs OpenClaw's own agent loop on this server. Scratch files last for one run. Its state lasts for the repository.",
+    "server",
   ),
 ];
 

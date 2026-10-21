@@ -87,6 +87,12 @@ export type RunStatus = "queued" | "running" | "completed" | "cancelled";
 export type StepStatus = "pending" | "queued" | "running" | "completed" | "skipped" | "cancelled";
 export type Conclusion = "success" | "failure" | "neutral" | "cancelled" | "skipped";
 export type AgentKind = "builtin" | "http";
+/** When a step runs: on every push, only when the PR is opened, or while the PR has a label. */
+export type StepTrigger = "every_push" | "opened" | "label";
+/** How strict a failing agent is: comment only, or also request changes. Blocking the merge is `blocking`. */
+export type ReviewMode = "comment" | "request_changes";
+/** How chatty: inline comments on lines, or one summary comment. */
+export type CommentStyle = "inline" | "summary";
 export type LogLevel = "info" | "warn" | "error";
 
 /** A GitHub App installation: one user or organization account. This is the tenant. */
@@ -149,6 +155,8 @@ export const agents = pgTable("agents", {
     onDelete: "cascade",
   }),
   defaultConfig: jsonb("default_config").$type<Record<string, unknown>>().notNull().default({}),
+  tagline: text("tagline").notNull().default(""),
+  createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -173,6 +181,11 @@ export const pipelineSteps = pgTable(
     branches: text("branches").array().notNull().default([]),
     runOnDrafts: boolean("run_on_drafts").notNull().default(false),
     runOnForks: boolean("run_on_forks").notNull().default(true),
+    trigger: varchar("trigger", { length: 20 }).$type<StepTrigger>().notNull().default("every_push"),
+    triggerLabel: varchar("trigger_label", { length: 50 }),
+    reviewMode: varchar("review_mode", { length: 20 }).$type<ReviewMode>().notNull().default("comment"),
+    commentStyle: varchar("comment_style", { length: 10 }).$type<CommentStyle>().notNull().default("inline"),
+    maxComments: integer("max_comments").notNull().default(30),
     config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -224,6 +237,9 @@ export const runSteps = pgTable(
     agentName: varchar("agent_name", { length: 100 }).notNull(),
     stage: integer("stage").notNull(),
     blocking: boolean("blocking").notNull().default(false),
+    reviewMode: varchar("review_mode", { length: 20 }).$type<ReviewMode>().notNull().default("comment"),
+    commentStyle: varchar("comment_style", { length: 10 }).$type<CommentStyle>().notNull().default("inline"),
+    maxComments: integer("max_comments").notNull().default(30),
     config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
     // Changed files (repo-relative, not removed) this step should look at, after its path rules.
     targetFiles: text("target_files").array().notNull().default([]),

@@ -15,6 +15,13 @@
       "when": 1792390537667,
       "tag": "0001_app_config",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792580503262,
+      "tag": "0002_agent_cards_and_triggers",
+      "breakpoints": true
     }
   ]
 }

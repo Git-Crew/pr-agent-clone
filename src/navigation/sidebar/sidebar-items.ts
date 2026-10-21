@@ -1,4 +1,5 @@
 import {
+  Activity,
   Blocks,
   Cable,
   CreditCard,
@@ -56,6 +57,7 @@ export const sidebarItems: NavGroup[] = [
       { id: "repos", title: "Repositories", url: "/dashboard/repos", icon: SquareLibrary },
       { id: "agents", title: "Agents", url: "/dashboard/agents", icon: Blocks },
       { id: "runs", title: "Runs", url: "/dashboard/runs", icon: GitPullRequestArrow },
+      { id: "usage", title: "Usage", url: "/dashboard/usage", icon: Activity },
     ],
   },
   {

@@ -18,7 +18,8 @@ export default function PricingPage() {
         Multiple agents, <span className="mkt-mark">one bill</span>.
       </h1>
       <p className="mkt-lede">
-        Install the GitHub App once. AntiSlop, Hermes, OpenClaw, Grokbot, OpenAI Dots, and Ponytail run on the same contract, and the managed allowance is billed together.
+        Install the GitHub App once. AntiSlop, Hermes, OpenClaw, Grokbot, OpenAI Dots, and Ponytail run on the same
+        contract, and the managed allowance is billed together.
       </p>
       <div className="mkt-grid">
         {tiers.map(([name, price, copy]) => (

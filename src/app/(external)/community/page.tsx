@@ -12,7 +12,8 @@ export default function CommunityPage() {
         The contract is <span className="mkt-mark">open</span>.
       </h1>
       <p className="mkt-lede">
-        GitCrew is open source. Issues, agent ideas, and review notes belong in the repository. Maintainer suggestions feed Hermes, and the runner stays in the repo you can read.
+        GitCrew is open source. Issues, agent ideas, and review notes belong in the repository. Maintainer suggestions
+        feed Hermes, and the runner stays in the repo you can read.
       </p>
       <div className="mkt-grid">
         <article className="mkt-card">

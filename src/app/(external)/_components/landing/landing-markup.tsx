@@ -5332,17 +5332,6 @@ export function LandingMarkup() {
                                         </svg>
                                       </span>
                                     </div>
-                                    <div
-                                      aria-hidden="true"
-                                      style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", height: "28px", maxWidth: "44%", filter: "brightness(0)", opacity: "0.92", flexShrink: "0" } as CSSProperties}
-                                    >
-                                      <img
-                                        src="/gitcrew/images/logos/testimonitals-default/lucid-logo.webp"
-                                        alt="Brightline"
-                                        className=""
-                                        style={{ height: "26px", width: "auto", display: "block" } as CSSProperties}
-                                      />
-                                    </div>
                                   </div>
                                 </a>
                                 <a
@@ -5400,17 +5389,6 @@ export function LandingMarkup() {
                                           />
                                         </svg>
                                       </span>
-                                    </div>
-                                    <div
-                                      aria-hidden="true"
-                                      style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", height: "28px", maxWidth: "44%", filter: "brightness(0)", opacity: "0.92", flexShrink: "0" } as CSSProperties}
-                                    >
-                                      <img
-                                        src="/gitcrew/images/logos/testimonitals-default/writer-logo.webp"
-                                        alt="Paper Co"
-                                        className=""
-                                        style={{ height: "26px", width: "auto", display: "block" } as CSSProperties}
-                                      />
                                     </div>
                                   </div>
                                 </a>
@@ -5470,17 +5448,6 @@ export function LandingMarkup() {
                                         </svg>
                                       </span>
                                     </div>
-                                    <div
-                                      aria-hidden="true"
-                                      style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", height: "28px", maxWidth: "44%", filter: "brightness(0)", opacity: "0.92", flexShrink: "0" } as CSSProperties}
-                                    >
-                                      <img
-                                        src="/gitcrew/images/logos/testimonitals-default/openrouter-logo.svg"
-                                        alt="Route Co"
-                                        className=""
-                                        style={{ height: "40px", width: "auto", display: "block" } as CSSProperties}
-                                      />
-                                    </div>
                                   </div>
                                 </a>
                                 <a
@@ -5538,17 +5505,6 @@ export function LandingMarkup() {
                                           />
                                         </svg>
                                       </span>
-                                    </div>
-                                    <div
-                                      aria-hidden="true"
-                                      style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", height: "28px", maxWidth: "44%", filter: "brightness(0)", opacity: "0.92", flexShrink: "0" } as CSSProperties}
-                                    >
-                                      <img
-                                        src="/gitcrew/images/logos/testimonitals-default/excalidraw-logo.svg"
-                                        alt="Sketch Co"
-                                        className=""
-                                        style={{ height: "17px", width: "auto", display: "block" } as CSSProperties}
-                                      />
                                     </div>
                                   </div>
                                 </a>

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BUILTIN_AGENTS } from "@/lib/agents/registry";
+import { getCatalogCard } from "@/lib/agents/catalog";
 import { getPipeline, getRepo, listAgents, listRuns, requireUser } from "@/lib/db/dashboard";
 import { getAppUrl } from "@/lib/env";
 import { checkRunName } from "@/lib/pipeline/orchestrator";
@@ -18,7 +18,7 @@ import { RunsTable } from "../../_components/runs-table";
 import { PipelineEditor } from "./_components/pipeline-editor";
 import { WorkflowSetup } from "./_components/workflow-setup";
 
-export const metadata: Metadata = { title: "Repository · Agent PR" };
+export const metadata: Metadata = { title: "Repository · GitCrew" };
 
 export default async function Page({ params }: { params: Promise<{ repoId: string }> }) {
   const user = await requireUser();
@@ -32,7 +32,11 @@ export default async function Page({ params }: { params: Promise<{ repoId: strin
     listRuns(user.id, { repoId: repo.id, limit: 10 }),
   ]);
   const blockingChecks = pipeline.filter(({ step }) => step.blocking && step.enabled).map(({ agent }) => agent.name);
-  const runnableAgents = agents.filter((agent) => BUILTIN_AGENTS.some((b) => b.slug === agent.slug));
+  // Agents that can run today: available catalog agents and agents people connected themselves.
+  const runnableAgents = agents.filter((agent) => {
+    const card = getCatalogCard(agent.slug);
+    return card ? card.status === "available" : agent.kind === "http";
+  });
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -64,12 +68,16 @@ export default async function Page({ params }: { params: Promise<{ repoId: strin
         <TabsContent value="pipeline">
           <PipelineEditor
             repoId={repo.id}
-            agents={runnableAgents.map((a) => ({
-              id: a.id,
-              slug: a.slug,
-              name: a.name,
-              defaultConfig: a.defaultConfig,
-            }))}
+            agents={runnableAgents.map((a) => {
+              const card = getCatalogCard(a.slug);
+              return {
+                id: a.id,
+                slug: a.slug,
+                name: a.name,
+                tagline: card?.tagline ?? a.tagline,
+                settings: card?.settings ?? [],
+              };
+            })}
             initialSteps={pipeline.map(({ step }) => ({
               agentId: step.agentId,
               stage: step.stage,
@@ -80,6 +88,11 @@ export default async function Page({ params }: { params: Promise<{ repoId: strin
               branches: step.branches,
               runOnDrafts: step.runOnDrafts,
               runOnForks: step.runOnForks,
+              trigger: step.trigger,
+              triggerLabel: step.triggerLabel,
+              reviewMode: step.reviewMode,
+              commentStyle: step.commentStyle,
+              maxComments: step.maxComments,
               config: step.config,
             }))}
           />

@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 
+import { parseSettings } from "@/lib/agents/card";
+import { getCatalogCard } from "@/lib/agents/catalog";
 import { resolveAgentConfig } from "@/lib/agents/registry";
 import { encryptSecret } from "@/lib/crypto/secrets";
 import { getInstallationIds, getRepo, requireUser } from "@/lib/db/dashboard";
@@ -39,11 +41,15 @@ async function toPipelineRows(installationIds: number[], repositoryId: number, s
   return steps.map((step, index) => {
     const slug = allowed.get(step.agentId);
     if (!slug) throw new Error("Unknown agent");
+    // Settings come from the agent's card; built-in agents also validate against their own schema.
+    const card = getCatalogCard(slug);
+    const settings = card ? parseSettings(card.settings, step.config) : step.config;
     return {
       ...step,
+      triggerLabel: step.trigger === "label" ? step.triggerLabel : null,
       repositoryId,
       position: index,
-      config: resolveAgentConfig(slug, step.config),
+      config: resolveAgentConfig(slug, settings),
     };
   });
 }

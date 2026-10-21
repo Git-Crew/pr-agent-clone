@@ -29,6 +29,13 @@
       "when": 1792581044589,
       "tag": "0003_keep_runs_of_removed_agents",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792582000000,
+      "tag": "0004_agent_phases",
+      "breakpoints": true
     }
   ]
 }

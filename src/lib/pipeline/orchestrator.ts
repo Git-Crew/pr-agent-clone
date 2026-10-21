@@ -26,6 +26,8 @@ import type { CheckRunConclusion, GitHubClient, InstallationInfo, InstallationRe
 import { GitHubApiError } from "@/lib/github/client";
 import type { ActionsClaims } from "@/lib/github/oidc";
 import { verifyWebhookSignature } from "@/lib/github/webhook";
+import { noteFromFinish } from "@/lib/observe/phase";
+import { rememberPhase } from "@/lib/observe/remember";
 
 import { checkRunName } from "./naming";
 import { evaluateStep, isTriggered } from "./rules";
@@ -765,6 +767,19 @@ async function completeStepWithError(deps: OrchestratorDeps, step: RunStep, mess
   await log(deps.db, step.runId, `${step.agentName}: ${message}`, "error", step.id);
   const ctx = await loadRunContext(deps.db, step.runId);
   if (ctx) {
+    await rememberPhase(
+      deps.db,
+      noteFromFinish({
+        agentSlug: step.agentSlug,
+        agentName: step.agentName,
+        outcome: "failed",
+        startedAt: step.startedAt,
+        finishedAt: new Date(),
+        runId: step.runId,
+        stepId: step.id,
+        repository: ctx.repo.fullName,
+      }),
+    );
     await safeUpdateCheckRun(deps, ctx.repo, step, {
       status: "completed",
       conclusion: conclusion as CheckRunConclusion,
@@ -785,11 +800,12 @@ async function completeStepWithResult(
   const { db } = deps;
   const github = deps.github(repo.installationId);
   const conclusion = checkConclusion(result.conclusion, step.blocking);
+  const finishedAt = new Date();
 
   // Claim completion first so a duplicate POST cannot post a second review.
   const claimed = await db
     .update(runSteps)
-    .set({ status: "completed", conclusion, finishedAt: new Date() })
+    .set({ status: "completed", conclusion, finishedAt })
     .where(and(eq(runSteps.id, step.id), inArray(runSteps.status, ["queued", "running"])))
     .returning({ id: runSteps.id });
   if (claimed.length === 0) throw new RunnerRequestError(409, "Step already completed");
@@ -860,6 +876,20 @@ async function completeStepWithResult(
       reviewId,
     })
     .where(eq(runSteps.id, step.id));
+  await rememberPhase(
+    db,
+    noteFromFinish({
+      agentSlug: step.agentSlug,
+      agentName: step.agentName,
+      outcome: result.conclusion === "failure" ? "failed" : "ok",
+      metrics: result.metrics,
+      startedAt: step.startedAt,
+      finishedAt,
+      runId: run.id,
+      stepId: step.id,
+      repository: repo.fullName,
+    }),
+  );
   await log(db, run.id, `${step.agentName}: ${result.title} → ${conclusion}`, "info", step.id);
   return conclusion;
 }

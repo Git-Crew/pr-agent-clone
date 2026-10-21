@@ -94,6 +94,8 @@ export type ReviewMode = "comment" | "request_changes";
 /** How chatty: inline comments on lines, or one summary comment. */
 export type CommentStyle = "inline" | "summary";
 export type LogLevel = "info" | "warn" | "error";
+/** How an agent phase ended. `failed` is the agent's own conclusion, even when the check stays neutral. */
+export type PhaseOutcome = "ok" | "failed";
 
 /** A GitHub App installation: one user or organization account. This is the tenant. */
 export const installations = pgTable("installations", {
@@ -273,6 +275,31 @@ export const runLogs = pgTable(
   (t) => [index("run_logs_run_idx").on(t.runId)],
 );
 
+/** One finished agent phase: tokens, duration, and outcome for the usage page and the metrics scrape. */
+export const agentPhases = pgTable(
+  "agent_phases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "cascade" }),
+    stepId: uuid("step_id").references(() => runSteps.id, { onDelete: "set null" }),
+    repositoryId: bigint("repository_id", { mode: "number" })
+      .notNull()
+      .references(() => repositories.id, { onDelete: "cascade" }),
+    agentSlug: varchar("agent_slug", { length: 64 }).notNull(),
+    agentName: varchar("agent_name", { length: 100 }).notNull(),
+    phase: varchar("phase", { length: 40 }).notNull(),
+    outcome: varchar("outcome", { length: 20 }).$type<PhaseOutcome>().notNull(),
+    model: varchar("model", { length: 120 }),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    durationMs: integer("duration_ms").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("agent_phases_created_idx").on(t.createdAt), index("agent_phases_repository_idx").on(t.repositoryId)],
+);
+
 /** Encrypted secrets. repositoryId null = available to every repo in the installation. */
 export const secrets = pgTable(
   "secrets",
@@ -404,6 +431,12 @@ export const runLogsRelations = relations(runLogs, ({ one }) => ({
   run: one(runs, { fields: [runLogs.runId], references: [runs.id] }),
 }));
 
+export const agentPhasesRelations = relations(agentPhases, ({ one }) => ({
+  run: one(runs, { fields: [agentPhases.runId], references: [runs.id] }),
+  step: one(runSteps, { fields: [agentPhases.stepId], references: [runSteps.id] }),
+  repository: one(repositories, { fields: [agentPhases.repositoryId], references: [repositories.id] }),
+}));
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -426,6 +459,7 @@ export type NewPipelineStep = typeof pipelineSteps.$inferInsert;
 export type Run = typeof runs.$inferSelect;
 export type RunStep = typeof runSteps.$inferSelect;
 export type RunLog = typeof runLogs.$inferSelect;
+export type AgentPhase = typeof agentPhases.$inferSelect;
 export type Secret = typeof secrets.$inferSelect;
 export type TeamDataWithMembers = Team & {
   teamMembers: (TeamMember & {

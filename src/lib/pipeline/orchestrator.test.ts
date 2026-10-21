@@ -156,6 +156,10 @@ describe("run lifecycle", () => {
     const { conclusion } = await submitStepResult(deps, job.steps[0].stepId, { ok: true, output: REPORT }, claims);
     // A HIGH issue fails the agent, but the step is not blocking, so the check is neutral.
     expect(conclusion).toBe("neutral");
+    const phases = await db.select().from(schema.agentPhases);
+    expect(phases).toEqual([
+      expect.objectContaining({ agentSlug: "fixmyslop", phase: "review", outcome: "failed", repositoryId: REPO.id }),
+    ]);
 
     expect(github.reviews).toHaveLength(1);
     expect(github.reviews[0].comments).toEqual([expect.objectContaining({ path: "src/a.py", line: 2, side: "RIGHT" })]);

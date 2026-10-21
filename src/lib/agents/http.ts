@@ -131,7 +131,7 @@ export function sampleAgentRequest(appUrl: string): AgentRequest {
         status: "modified",
         additions: 2,
         deletions: 0,
-        patch: "@@ -1,1 +1,3 @@\n import x from 'x';\n+const key = 'sk-test';\n+eval(input);",
+        patch: "@@ -1,1 +1,3 @@\n export function greet(name) {\n+  console.log(name);\n+  return name.trim();",
       },
     ],
     callbackUrl: `${appUrl}/api/agents/steps/00000000-0000-0000-0000-000000000001/result`,

@@ -478,7 +478,7 @@ async function buildAgentRequest(
 
 async function runHttpStep(deps: OrchestratorDeps, run: Run, repo: Repository, step: RunStep): Promise<void> {
   const { db } = deps;
-  const [agent] = await db.select().from(agents).where(eq(agents.id, step.agentId)).limit(1);
+  const [agent] = step.agentId ? await db.select().from(agents).where(eq(agents.id, step.agentId)).limit(1) : [];
   if (!agent?.endpointUrl || !agent.signingSecret) {
     await completeStepWithError(deps, step, "This agent has no URL or secret. Reconnect it on the Agents page.");
     return;

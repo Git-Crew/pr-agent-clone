@@ -230,9 +230,8 @@ export const runSteps = pgTable(
       .notNull()
       .references(() => runs.id, { onDelete: "cascade" }),
     pipelineStepId: uuid("pipeline_step_id").references(() => pipelineSteps.id, { onDelete: "set null" }),
-    agentId: uuid("agent_id")
-      .notNull()
-      .references(() => agents.id, { onDelete: "cascade" }),
+    // Kept nullable so removing an agent keeps its past runs (agent_slug/agent_name hold the snapshot).
+    agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
     agentSlug: varchar("agent_slug", { length: 64 }).notNull(),
     agentName: varchar("agent_name", { length: 100 }).notNull(),
     stage: integer("stage").notNull(),

@@ -55,7 +55,12 @@ export default async function Page() {
         <CardHeader>
           <CardTitle>Recent runs</CardTitle>
           <CardDescription>The latest pipeline runs across your repositories.</CardDescription>
-          <CardAction>
+          <CardAction className="flex items-center gap-1">
+            <Button asChild variant="ghost" size="sm">
+              <Link prefetch={false} href="/dashboard/usage">
+                Usage
+              </Link>
+            </Button>
             <Button asChild variant="ghost" size="sm">
               <Link prefetch={false} href="/dashboard/runs">
                 All runs

@@ -1,6 +1,7 @@
+import { Activity, CircleX, Coins } from "lucide-react";
 import type { Metadata } from "next";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getInstallationIds, requireUser } from "@/lib/db/dashboard";
@@ -29,28 +30,31 @@ export default async function Page() {
   const since = new Date(Date.now() - WEEK_MS);
   const usage = await usageSummary(db, await getInstallationIds(user.id), since);
   const cards = [
-    { label: "Phases this week", value: tokens(usage.phases), hint: "finished agent steps" },
-    { label: "Input tokens", value: tokens(usage.inputTokens), hint: "reported by the agent" },
-    { label: "Output tokens", value: tokens(usage.outputTokens), hint: "reported by the agent" },
-    { label: "Failed phases", value: tokens(usage.failed), hint: "the agent reported a failure" },
+    { label: "Phases this week", value: tokens(usage.phases), hint: "finished agent steps", Icon: Activity },
+    { label: "Input tokens", value: tokens(usage.inputTokens), hint: "0 until an agent reports them", Icon: Coins },
+    { label: "Output tokens", value: tokens(usage.outputTokens), hint: "0 until an agent reports them", Icon: Coins },
+    { label: "Failed phases", value: tokens(usage.failed), hint: "the agent reported a failure", Icon: CircleX },
   ];
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <PageHeader
         title="Usage"
-        description="Tokens, duration, and failures for the last 7 days. Prometheus scrapes /api/metrics. Traces ship when GITCREW_OTLP_ENDPOINT is set."
+        description="Finished steps over the last 7 days. Run counts stay on Overview. Token totals appear here when an agent reports them."
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map((card) => (
-          <Card key={card.label}>
+        {cards.map(({ label, value, hint, Icon }) => (
+          <Card key={label}>
             <CardHeader>
-              <CardDescription>{card.label}</CardDescription>
+              <CardDescription>{label}</CardDescription>
+              <CardAction>
+                <Icon className="size-4 text-muted-foreground" aria-hidden />
+              </CardAction>
             </CardHeader>
             <CardContent className="space-y-1">
-              <div className="text-3xl leading-none tracking-tight">{card.value}</div>
-              <p className="text-muted-foreground text-xs">{card.hint}</p>
+              <div className="text-3xl leading-none tracking-tight">{value}</div>
+              <p className="text-muted-foreground text-xs">{hint}</p>
             </CardContent>
           </Card>
         ))}
@@ -59,7 +63,9 @@ export default async function Page() {
       <Card>
         <CardHeader>
           <CardTitle>By agent</CardTitle>
-          <CardDescription>Each row is one agent across the repositories you can see.</CardDescription>
+          <CardDescription>
+            Each row is one agent across the repositories you can see. Duration is the time from start to finish.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {usage.agents.length === 0 ? (

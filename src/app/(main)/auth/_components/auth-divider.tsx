@@ -13,6 +13,10 @@ const ERRORS: Record<string, string> = {
   github_not_configured: "Sign in with GitHub is not configured on this deployment yet.",
   google_failed: "We could not sign you in with Google. Please try again.",
   google_not_configured: "Sign in with Google is not configured on this deployment yet.",
+  google_db:
+    "Google sign-in needs a database migration. From your machine run: npm run db:migrate against the Neon unpooled URL.",
+  google_token:
+    "Google rejected the token exchange. Check GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and that the redirect URI is exactly {APP_URL}/api/auth/google/callback.",
 };
 
 export function authErrorMessage(code: string | undefined): string | null {

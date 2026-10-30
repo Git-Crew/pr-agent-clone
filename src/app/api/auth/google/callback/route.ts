@@ -38,6 +38,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", appUrl));
   } catch (error) {
     console.error("Google sign-in failed", error);
+    const message = error instanceof Error ? error.message : "";
+    if (/google_id|column|relation|migrate/i.test(message)) return fail("google_db");
+    if (/token exchange|userinfo|incomplete|not verified/i.test(message)) return fail("google_token");
     return fail("google_failed");
   }
 }

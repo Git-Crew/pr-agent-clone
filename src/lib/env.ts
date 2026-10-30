@@ -24,17 +24,40 @@ export function readGitHubAppEnv(env: NodeJS.ProcessEnv = process.env): GitHubAp
   };
 }
 
+/** Empty strings in Vercel env count as unset; `??` alone does not. */
+function firstUrl(...values: Array<string | undefined>): string | undefined {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed) return trimmed.replace(/\/+$/, "");
+  }
+  return undefined;
+}
+
 /**
  * Public base URL of this deployment, without a trailing slash. Also the OIDC audience for the runner.
  * On Vercel it falls back to the production domain so a fresh deploy works before APP_URL is set.
  */
 export function getAppUrl(env: NodeJS.ProcessEnv = process.env): string {
-  const url =
-    env.APP_URL ??
-    env.BASE_URL ??
-    (env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined);
+  const url = firstUrl(
+    env.APP_URL,
+    env.BASE_URL,
+    env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined,
+    env.VERCEL_URL ? `https://${env.VERCEL_URL}` : undefined,
+  );
   if (!url) throw new Error("APP_URL is not set");
-  return url.replace(/\/+$/, "");
+  return url;
+}
+
+/** Same as getAppUrl, but safe at build time when APP_URL was left blank in the dashboard. */
+export function getSiteUrl(env: NodeJS.ProcessEnv = process.env): string {
+  return (
+    firstUrl(
+      env.APP_URL,
+      env.BASE_URL,
+      env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined,
+      env.VERCEL_URL ? `https://${env.VERCEL_URL}` : undefined,
+    ) ?? "http://localhost:3000"
+  );
 }
 
 /**

@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 
-const SITE_URL = process.env.APP_URL ?? "http://localhost:3000";
+import { getSiteUrl } from "@/lib/env";
+
+const SITE_URL = getSiteUrl();
 
 const PUBLIC_ROUTES = ["/", "/auth/v1/login", "/auth/v1/register"] as const;
 

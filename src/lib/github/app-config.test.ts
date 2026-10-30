@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { appConfig } from "@/lib/db/schema";
-import { canManageGitHubApp, getAppUrl, readGitHubAppEnv } from "@/lib/env";
+import { canManageGitHubApp, getAppUrl, getSiteUrl, readGitHubAppEnv } from "@/lib/env";
 import { createTestDb } from "@/lib/test/db";
 
 import { loadGitHubAppConfig, saveGitHubAppFromManifest } from "./app-config";
@@ -131,6 +131,14 @@ describe("env helpers", () => {
       "https://pr-agent.vercel.app",
     );
     expect(() => getAppUrl({} as NodeJS.ProcessEnv)).toThrow();
+    // An empty APP_URL in the Vercel dashboard must not win over Vercel’s own URL.
+    expect(
+      getAppUrl({
+        APP_URL: "",
+        VERCEL_PROJECT_PRODUCTION_URL: "pr-agent.vercel.app",
+      } as unknown as NodeJS.ProcessEnv),
+    ).toBe("https://pr-agent.vercel.app");
+    expect(getSiteUrl({ APP_URL: "" } as unknown as NodeJS.ProcessEnv)).toBe("http://localhost:3000");
   });
 
   it("only lets ADMIN_EMAILS manage the App in production", () => {

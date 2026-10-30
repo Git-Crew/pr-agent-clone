@@ -36,6 +36,13 @@
       "when": 1792582000000,
       "tag": "0004_agent_phases",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792583000000,
+      "tag": "0005_google_oauth",
+      "breakpoints": true
     }
   ]
 }

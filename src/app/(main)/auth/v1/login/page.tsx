@@ -4,9 +4,12 @@ import { GitPullRequestArrow } from "lucide-react";
 import type { Metadata } from "next";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { readGoogleOAuthEnv } from "@/lib/auth/google";
+import { getGitHubAppConfig } from "@/lib/server/deps";
 
-import { authErrorMessage } from "../../_components/auth-divider";
+import { AuthDivider, authErrorMessage } from "../../_components/auth-divider";
 import { GitHubSignIn } from "../../_components/github-sign-in";
+import { GoogleSignIn } from "../../_components/google-sign-in";
 import { LoginForm } from "../../_components/login-form";
 
 export const metadata: Metadata = {
@@ -21,6 +24,8 @@ export default async function LoginV1({ searchParams }: { searchParams: Promise<
   const code = (await searchParams).error;
   // The first-time setup note already explains a missing GitHub App.
   const error = code === "github_not_configured" ? null : authErrorMessage(code);
+  const hasGoogle = Boolean(readGoogleOAuthEnv());
+  const hasGitHub = Boolean(await getGitHubAppConfig().catch(() => null));
 
   return (
     <div className="flex h-dvh">
@@ -41,7 +46,7 @@ export default async function LoginV1({ searchParams }: { searchParams: Promise<
           <div className="space-y-4 text-center">
             <h2 className="font-medium tracking-tight">Sign in</h2>
             <p className="mx-auto max-w-xl text-muted-foreground">
-              Use GitHub to see the repositories where GitCrew is installed.
+              Sign in with Google or email. Use GitHub to connect the repositories where GitCrew is installed.
             </p>
           </div>
           <div className="space-y-4">
@@ -50,7 +55,9 @@ export default async function LoginV1({ searchParams }: { searchParams: Promise<
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             ) : null}
+            <GoogleSignIn />
             <GitHubSignIn mode="login" />
+            {hasGoogle || hasGitHub ? <AuthDivider label="Or with email" /> : null}
             <LoginForm />
             <p className="text-center text-muted-foreground text-xs">
               Don&apos;t have an account?{" "}

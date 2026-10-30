@@ -1,7 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getGitHubAppConfig } from "@/lib/server/deps";
 
-import { AuthDivider } from "./auth-divider";
 import { GitHubButton } from "./social-auth/github-button";
 
 /**
@@ -12,12 +11,7 @@ export async function GitHubSignIn({ mode }: { mode: "login" | "register" }) {
   const config = await getGitHubAppConfig().catch(() => null);
 
   if (config) {
-    return (
-      <>
-        <GitHubButton className="w-full" variant="default" />
-        <AuthDivider label="Or with email" />
-      </>
-    );
+    return <GitHubButton className="w-full" variant="default" />;
   }
 
   return (

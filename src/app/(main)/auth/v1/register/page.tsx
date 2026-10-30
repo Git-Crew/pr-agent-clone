@@ -3,7 +3,12 @@ import Link from "next/link";
 import { GitPullRequestArrow } from "lucide-react";
 import type { Metadata } from "next";
 
+import { readGoogleOAuthEnv } from "@/lib/auth/google";
+import { getGitHubAppConfig } from "@/lib/server/deps";
+
+import { AuthDivider } from "../../_components/auth-divider";
 import { GitHubSignIn } from "../../_components/github-sign-in";
+import { GoogleSignIn } from "../../_components/google-sign-in";
 import { RegisterForm } from "../../_components/register-form";
 
 export const metadata: Metadata = {
@@ -14,7 +19,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RegisterV1() {
+export default async function RegisterV1() {
+  const hasGoogle = Boolean(readGoogleOAuthEnv());
+  const hasGitHub = Boolean(await getGitHubAppConfig().catch(() => null));
   return (
     <div className="flex h-dvh">
       <div className="flex w-full items-center justify-center bg-background p-8 lg:w-2/3">
@@ -22,11 +29,13 @@ export default function RegisterV1() {
           <div className="space-y-4 text-center">
             <h2 className="font-medium tracking-tight">Create your account</h2>
             <p className="mx-auto max-w-xl text-muted-foreground">
-              Sign up with GitHub to connect your repositories in one step.
+              Sign up with Google or email. Connect GitHub next to install GitCrew on your repositories.
             </p>
           </div>
           <div className="space-y-4">
+            <GoogleSignIn />
             <GitHubSignIn mode="register" />
+            {hasGoogle || hasGitHub ? <AuthDivider label="Or with email" /> : null}
             <RegisterForm />
             <p className="text-center text-muted-foreground text-xs">
               Already have an account?{" "}

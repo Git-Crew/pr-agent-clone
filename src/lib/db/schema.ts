@@ -19,10 +19,11 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 100 }),
   email: varchar("email", { length: 255 }).notNull().unique(),
-  // Null for accounts created through "Sign in with GitHub".
+  // Null for accounts created through GitHub or Google sign-in.
   passwordHash: text("password_hash"),
   githubId: bigint("github_id", { mode: "number" }).unique(),
   githubLogin: varchar("github_login", { length: 100 }),
+  googleId: varchar("google_id", { length: 64 }).unique(),
   avatarUrl: text("avatar_url"),
   role: varchar("role", { length: 20 }).notNull().default("member"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

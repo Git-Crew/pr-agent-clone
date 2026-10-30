@@ -8,9 +8,11 @@ export function AuthDivider({ label }: { label: string }) {
 
 const ERRORS: Record<string, string> = {
   state_mismatch: "That sign-in link expired. Please try again.",
-  missing_code: "GitHub did not finish the sign-in. Please try again.",
+  missing_code: "Sign-in did not finish. Please try again.",
   github_failed: "We could not sign you in with GitHub. Please try again.",
   github_not_configured: "Sign in with GitHub is not configured on this deployment yet.",
+  google_failed: "We could not sign you in with Google. Please try again.",
+  google_not_configured: "Sign in with Google is not configured on this deployment yet.",
 };
 
 export function authErrorMessage(code: string | undefined): string | null {

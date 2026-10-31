@@ -102,12 +102,13 @@ export async function ensureBuiltinAgents(db: Db) {
   }
 }
 
-/** New repos start with FixMySlop in stage 1, non-blocking, so a fresh install works with zero setup. */
+/**
+ * New repos start with an empty pipeline. Add agents from the Agents page (or the repo Pipeline tab)
+ * one at a time — nothing runs on a PR until you put it there.
+ */
 async function addDefaultPipeline(db: Db, repositoryId: number) {
   await ensureBuiltinAgents(db);
-  const [fixmyslop] = await db.select().from(agents).where(eq(agents.slug, "fixmyslop")).limit(1);
-  if (!fixmyslop) return;
-  await db.insert(pipelineSteps).values({ repositoryId, agentId: fixmyslop.id, stage: 1, position: 0 });
+  void repositoryId;
 }
 
 export async function upsertInstallation(db: Db, info: InstallationInfo) {

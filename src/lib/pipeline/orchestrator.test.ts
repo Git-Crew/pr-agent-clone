@@ -100,6 +100,13 @@ async function pipeline() {
   return db.select().from(schema.pipelineSteps).where(eq(schema.pipelineSteps.repositoryId, REPO.id));
 }
 
+/** Tests that need a runner still add FixMySlop explicitly — new repos no longer get a default agent. */
+async function addFixMySlop() {
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.slug, "fixmyslop")).limit(1);
+  expect(agent).toBeTruthy();
+  await db.insert(schema.pipelineSteps).values({ repositoryId: REPO.id, agentId: agent.id, stage: 1, position: 0 });
+}
+
 async function stepsOf(runId: string) {
   return db.select().from(schema.runSteps).where(eq(schema.runSteps.runId, runId));
 }
@@ -110,26 +117,28 @@ async function runRow(runId: string) {
 }
 
 describe("installation sync", () => {
-  it("stores the installation and repos and gives new repos a FixMySlop pipeline", async () => {
+  it("stores the installation and repos with an empty pipeline", async () => {
     const [installation] = await db.select().from(schema.installations);
     expect(installation.accountLogin).toBe("octo");
     const [repo] = await db.select().from(schema.repositories);
     expect(repo).toMatchObject({ fullName: "octo/app", defaultBranch: "main", enabled: true });
-    const steps = await pipeline();
-    expect(steps).toHaveLength(1);
-    expect(steps[0]).toMatchObject({ stage: 1, blocking: false });
+    expect(await pipeline()).toHaveLength(0);
 
-    // A second sync does not duplicate the default pipeline.
+    // A second sync still leaves the pipeline empty (no auto-agents).
     await syncInstallation(deps, {
       id: INSTALLATION,
       account: { id: 9, login: "octo", type: "Organization", avatar_url: "" },
       suspended_at: null,
     });
-    expect(await pipeline()).toHaveLength(1);
+    expect(await pipeline()).toHaveLength(0);
   });
 });
 
 describe("run lifecycle", () => {
+  beforeEach(async () => {
+    await addFixMySlop();
+  });
+
   it("runs FixMySlop end to end: check run, dispatch, job, review, conclusion", async () => {
     const runId = await startRunForPullRequest(deps, prEvent());
     expect(runId).toBeTruthy();
